@@ -1,8 +1,16 @@
-🎬 Sistema de Gestión de Cine
+# 🎬 Sistema de Gestión de Cine
 
 Sistema web para la gestión integral de un cine, permitiendo consultar la cartelera, próximos estrenos, funciones disponibles, selección de butacas, compra de entradas y productos del Candy Bar desde una única plataforma.
 
 El sistema contará además con un panel administrativo para gestionar películas, salas, funciones, butacas, productos y ventas.
+
+---
+
+## 🎯 Qué problema resuelve
+
+Hoy en día gestionar un cine implica coordinar varias cosas a la vez: qué películas están en cartelera, en qué salas y horarios se proyectan, qué butacas están disponibles para cada función, y la venta de entradas y productos de Candy Bar, todo evitando errores como vender dos veces la misma butaca para la misma función.
+
+Este proyecto busca centralizar esa gestión en una sola plataforma: por un lado, un panel administrativo para que el cine cargue y mantenga la información (películas, salas, funciones, productos, ventas); por otro, una experiencia simple para que el cliente consulte la cartelera, elija su función, seleccione butacas, sume productos del Candy Bar y complete la compra.
 
 ---
 
@@ -11,27 +19,103 @@ El sistema contará además con un panel administrativo para gestionar película
 * Lucía Agüero
 * Mateo Barrera
 * Joaquín Pignotti
-* Franco Sini
+* Franco Sinigaglia
 
 ---
 
-## 🎯 Objetivo del proyecto
+## 🛠️ Tecnología elegida
 
-El objetivo es desarrollar una aplicación web que permita administrar y gestionar las operaciones principales de un cine, centralizando tanto la gestión interna como la experiencia de compra de los clientes.
+### Frontend
+* **React** — Librería para la construcción de la interfaz.
+* **TypeScript** — Tipado estático para el código del cliente.
 
-Los clientes podrán consultar las películas disponibles, conocer los próximos estrenos, seleccionar una función, elegir sus butacas, agregar productos del Candy Bar y realizar la compra de sus entradas.
+### Backend
+* **Node.js** — Entorno de ejecución del servidor.
+* **Express.js** — Framework para el desarrollo de la API REST.
 
-Los administradores podrán gestionar las películas, salas, funciones, butacas, productos y consultar las ventas realizadas.
+### Base de datos
+* **PostgreSQL** — Sistema gestor de base de datos.
+* **Sequelize** — ORM para la comunicación entre Node.js y PostgreSQL.
+
+### Herramientas
+* **Git / GitHub** — Control de versiones y trabajo colaborativo.
+* **Docker / Docker Compose** — Contenerización y entorno de desarrollo común para todo el equipo.
+* **Postman** — Pruebas sobre la API REST.
+* **JWT** — Autenticación de usuarios.
+
+> Esta selección de tecnologías fue definida por el equipo para el Taller 1. Puede ajustarse si durante el desarrollo aparece una necesidad concreta que lo justifique.
 
 ---
 
-# 🛠️ Tecnologías utilizadas
+## 📦 Cómo instalar dependencias
 
-A definir 
+El proyecto todavía no tiene código implementado (ver [Estado actual](#-estado-actual-y-pendientes-conocidos)), por lo que estos pasos describen **cómo se instalará** una vez que arranque el desarrollo del backend y el frontend:
+
+```bash
+# Clonar el repositorio
+git clone <url-del-repositorio>
+cd gestion-cine
+
+# Instalar dependencias del backend
+cd backend
+npm install
+
+# Instalar dependencias del frontend
+cd ../frontend
+npm install
+```
+
+También se va a proveer un archivo `.env.example` con las variables de entorno necesarias (conexión a PostgreSQL, secreto de JWT, puertos, etc.), que cada integrante deberá copiar como `.env` y completar con sus propios valores locales.
 
 ---
 
-# 🏗️ Arquitectura
+## ▶️ Cómo ejecutar el proyecto
+
+**Opción con Docker (forma prevista para el entorno de desarrollo):**
+
+```bash
+docker-compose up --build
+```
+
+Esto debería levantar en un futuro los contenedores de backend, frontend y PostgreSQL con una configuración común para todo el equipo.
+
+**Opción manual (mientras no esté armado el Docker Compose):**
+
+```bash
+# Backend
+cd backend
+npm run dev
+
+# Frontend (en otra terminal)
+cd frontend
+npm start
+```
+
+> ⚠️ Por ahora estos comandos son la guía planeada de ejecución. Todavía no hay `package.json`, `docker-compose.yml` ni código funcional en el repositorio, así que no pueden ejecutarse aún tal cual.
+
+---
+
+## 📌 Estado actual y pendientes conocidos
+
+**Estado actual:** el proyecto está en etapa de planificación. Se creó el repositorio y este README inicial, pero **todavía no se escribió código** (ni backend ni frontend).
+
+**Pendientes conocidos:**
+
+* [ ] Definir y bocetar el diseño de las pantallas principales (cartelera, selección de butacas, checkout).
+* [ ] Modelar la base de datos (usuarios, películas, salas, funciones, butacas, compras, entradas, productos).
+* [ ] Definir la estructura final de carpetas del backend y frontend.
+* [ ] Configurar el proyecto base de backend (Express + Sequelize) y frontend (React + TypeScript).
+* [ ] Armar el `docker-compose.yml` con los servicios (backend, frontend, PostgreSQL).
+* [ ] Implementar la simulación del módulo de pagos (débito, crédito, efectivo).
+* [ ] Implementar autenticación (registro/login con JWT).
+* [ ] Implementar los módulos de películas, funciones, salas y butacas.
+* [ ] Implementar selección de butacas evitando doble venta para la misma función.
+* [ ] Implementar Candy Bar y flujo de compra completo.
+* [ ] Armar colección de Postman para pruebas de la API.
+
+---
+
+## 🏗️ Arquitectura
 
 El sistema seguirá una arquitectura cliente-servidor basada en una API REST.
 
@@ -39,7 +123,7 @@ El sistema seguirá una arquitectura cliente-servidor basada en una API REST.
 ┌─────────────────────────────────┐
 │            FRONTEND             │
 │       React + TypeScript        │
-│                                 │
+│                                  │
 │  Cartelera                      │
 │  Próximos estrenos              │
 │  Funciones                      │
@@ -51,9 +135,9 @@ El sistema seguirá una arquitectura cliente-servidor basada en una API REST.
                 │ HTTP / JSON
                 ▼
 ┌─────────────────────────────────┐
-│             BACKEND             │
-│       Node.js + Express         │
-│                                 │
+│             BACKEND              │
+│       Node.js + Express          │
+│                                  │
 │  Autenticación                  │
 │  Películas                      │
 │  Funciones                      │
@@ -67,8 +151,8 @@ El sistema seguirá una arquitectura cliente-servidor basada en una API REST.
                 │ Sequelize
                 ▼
 ┌─────────────────────────────────┐
-│           PostgreSQL            │
-│                                 │
+│           PostgreSQL             │
+│                                  │
 │  Usuarios                       │
 │  Películas                      │
 │  Salas                          │
@@ -82,11 +166,11 @@ El sistema seguirá una arquitectura cliente-servidor basada en una API REST.
 
 ---
 
-# 👤 Roles de usuario
+## 👤 Roles de usuario
 
 El sistema contará inicialmente con dos roles principales.
 
-## Administrador
+### Administrador
 
 Podrá:
 
@@ -100,7 +184,7 @@ Podrá:
 * Consultar ventas.
 * Consultar estadísticas del cine.
 
-## Cliente
+### Cliente
 
 Podrá:
 
@@ -120,9 +204,9 @@ Podrá:
 
 ---
 
-# 🎥 Funcionalidades principales
+## 🎥 Funcionalidades principales
 
-## Gestión de usuarios
+### Gestión de usuarios
 
 * Registro de usuarios.
 * Inicio de sesión.
@@ -131,70 +215,29 @@ Podrá:
 * Roles y permisos.
 * Control de acceso.
 
-## Gestión de películas
+### Gestión de películas
 
-El sistema permitirá:
-
-* Crear películas.
-* Editar películas.
-* Eliminar películas.
-* Consultar películas.
-* Agregar información de la película.
-* Agregar género.
-* Agregar duración.
-* Agregar clasificación.
-* Agregar sinopsis.
-* Agregar imagen/poster.
-* Agregar trailer.
+* Crear, editar, eliminar y consultar películas.
+* Agregar género, duración, clasificación, sinopsis, poster y trailer.
 * Marcar películas como próximas a estrenar.
 
-## Cartelera
+### Cartelera
 
-Los clientes podrán consultar:
+Los clientes podrán consultar películas disponibles, información de cada película, funciones disponibles, horarios y salas.
 
-* Películas actualmente disponibles.
-* Información de cada película.
-* Funciones disponibles.
-* Horarios.
-* Salas.
+### Próximos estrenos
 
-## Próximos estrenos
+Visualización de películas próximas a estrenarse, fecha de estreno, información, trailer, género y sinopsis.
 
-El sistema permitirá visualizar:
+### Gestión de salas
 
-* Películas próximas a estrenarse.
-* Fecha de estreno.
-* Información de la película.
-* Trailer.
-* Género.
-* Sinopsis.
+El administrador podrá crear, modificar y eliminar salas, configurar la cantidad de butacas y consultar su distribución.
 
-## Gestión de salas
+### Gestión de funciones
 
-El administrador podrá:
+El administrador podrá crear, modificar y eliminar funciones, asociarlas a una película y una sala, definir fecha y horario, y consultar funciones disponibles.
 
-* Crear salas.
-* Modificar salas.
-* Eliminar salas.
-* Configurar la cantidad de butacas.
-* Consultar la distribución de las butacas.
-
-## Gestión de funciones
-
-El administrador podrá:
-
-* Crear funciones.
-* Modificar funciones.
-* Eliminar funciones.
-* Asociar una película a una función.
-* Asociar una sala.
-* Definir fecha.
-* Definir horario.
-* Consultar funciones disponibles.
-
-## Selección de butacas
-
-El cliente podrá:
+### Selección de butacas
 
 1. Seleccionar una película.
 2. Seleccionar una función.
@@ -205,64 +248,34 @@ El cliente podrá:
 
 El sistema deberá evitar que una misma butaca sea vendida para la misma función a más de un cliente.
 
-## 🎟️ Compra de entradas
+### 🎟️ Compra de entradas
 
-El usuario podrá:
+Seleccionar función, seleccionar butacas, revisar el resumen de compra, confirmar la compra, realizar el pago y obtener las entradas.
 
-* Seleccionar una función.
-* Seleccionar sus butacas.
-* Revisar el resumen de compra.
-* Confirmar la compra.
-* Realizar el pago.
-* Obtener sus entradas.
+### 🍿 Candy Bar
 
-## 🍿 Candy Bar
+Productos como pochoclos, gaseosas, agua, golosinas y combos.
 
-El sistema permitirá gestionar productos como:
+El administrador podrá crear, modificar y eliminar productos, modificar precios y gestionar stock.
+El cliente podrá consultar productos, seleccionarlos, definir cantidades y agregarlos a su compra.
 
-* Pochoclos.
-* Gaseosas.
-* Agua.
-* Golosinas.
-* Combos.
+### 💳 Pagos
 
-El administrador podrá:
+Se simulará el proceso de pago, permitiendo elegir entre los siguientes medios:
 
-* Crear productos.
-* Modificar productos.
-* Eliminar productos.
-* Modificar precios.
-* Gestionar stock.
+* Tarjeta de débito.
+* Tarjeta de crédito.
+* Efectivo.
 
-El cliente podrá:
+La simulación será simple: no se integrará con una pasarela de pago real, sino que se registrará el medio elegido y se confirmará la compra.
 
-* Consultar productos.
-* Seleccionar productos.
-* Definir cantidades.
-* Agregarlos a su compra.
+### 🎫 Entradas
 
-## 💳 Pagos
-
-Simular ?¿¿
-
-
-## 🎫 Entradas
-
-Luego de realizar una compra, el sistema generará una entrada asociada a:
-
-* Película.
-* Función.
-* Sala.
-* Butaca.
-* Usuario.
-* Fecha de compra.
-* Código de entrada.
+Luego de realizar una compra, el sistema generará una entrada asociada a película, función, sala, butaca, usuario, fecha de compra y código de entrada.
 
 ---
 
-# 🔄 Flujo principal de compra
-
-El flujo principal del sistema será:
+## 🔄 Flujo principal de compra
 
 ```text
 Usuario
@@ -294,19 +307,17 @@ Obtiene sus entradas
 
 ---
 
-# 🌐 API REST
+## 🌐 API REST (propuesta inicial)
 
-El backend expondrá una API REST para la comunicación entre el frontend y el servidor.
+El backend expondrá una API REST para la comunicación entre el frontend y el servidor. Estos endpoints son una propuesta inicial y podrán modificarse a medida que avance el desarrollo.
 
-## Autenticación
-
+### Autenticación
 ```text
 POST   /api/autenticacion/registro
 POST   /api/autenticacion/login
 ```
 
-## Películas
-
+### Películas
 ```text
 GET    /api/peliculas
 GET    /api/peliculas/:id
@@ -315,8 +326,7 @@ PUT    /api/peliculas/:id
 DELETE /api/peliculas/:id
 ```
 
-## Salas
-
+### Salas
 ```text
 GET    /api/salas
 GET    /api/salas/:id
@@ -325,8 +335,7 @@ PUT    /api/salas/:id
 DELETE /api/salas/:id
 ```
 
-## Funciones
-
+### Funciones
 ```text
 GET    /api/funciones
 GET    /api/funciones/:id
@@ -335,15 +344,13 @@ PUT    /api/funciones/:id
 DELETE /api/funciones/:id
 ```
 
-## Butacas
-
+### Butacas
 ```text
 GET    /api/funciones/:id/butacas
 POST   /api/funciones/:id/butacas
 ```
 
-## Productos / Candy Bar
-
+### Productos / Candy Bar
 ```text
 GET    /api/productos
 GET    /api/productos/:id
@@ -352,62 +359,72 @@ PUT    /api/productos/:id
 DELETE /api/productos/:id
 ```
 
-## Compras
-
+### Compras
 ```text
 GET    /api/compras
 GET    /api/compras/:id
 POST   /api/compras
 ```
 
-## Entradas
-
+### Entradas
 ```text
 GET    /api/entradas
 GET    /api/entradas/:id
 ```
 
-Los endpoints podrán modificarse a medida que avance el desarrollo.
+---
+
+## 🐳 Docker
+
+Docker será utilizado para facilitar la configuración y ejecución del entorno de desarrollo. Docker Compose permitirá levantar los servicios necesarios (backend, frontend y PostgreSQL) utilizando una configuración común para todos los integrantes del proyecto. Todavía no está implementado.
 
 ---
 
-# 🐳 Docker
+## 🧪 Pruebas
 
-Docker será utilizado para facilitar la configuración y ejecución del entorno de desarrollo.
-Docker Compose permitirá levantar los servicios necesarios utilizando una configuración común para todos los integrantes del proyecto.
-
----
-
-# 🧪 Pruebas
-
-Se utilizará **Postman** para realizar pruebas sobre la API REST.
-
-Se comprobarán:
-
-* Respuestas HTTP.
-* Registro de usuarios.
-* Autenticación.
-* Creación de recursos.
-* Actualización de recursos.
-* Eliminación de recursos.
-* Validaciones.
-* Manejo de errores.
-* Autorización según roles.
-* Relaciones entre entidades.
-* Disponibilidad de butacas.
-* Registro de compras.
+Se utilizará **Postman** para realizar pruebas sobre la API REST, comprobando respuestas HTTP, registro de usuarios, autenticación, creación/actualización/eliminación de recursos, validaciones, manejo de errores, autorización según roles, relaciones entre entidades, disponibilidad de butacas y registro de compras.
 
 ---
 
-# 📁 Estructura aproximada del proyecto
+## 📁 Estructura propuesta del proyecto
 
-a definir
+Todavía no existe código, por lo que esta es la organización de carpetas que el equipo planea seguir, coherente con el stack elegido (Node/Express en el backend, React/TypeScript en el frontend):
 
-La estructura podrá modificarse a medida que evolucione el proyecto.
+```text
+gestion-cine/
+│
+├── backend/
+│   ├── config/
+│   ├── controllers/
+│   ├── models/
+│   ├── routes/
+│   ├── middlewares/
+│   ├── services/
+│   ├── migrations/
+│   ├── seeders/
+│   └── app.js
+│
+├── frontend/
+│   ├── src/
+│   │   ├── components/
+│   │   ├── pages/
+│   │   ├── services/
+│   │   └── types/
+│   └── public/
+│
+├── docker/
+│
+├── .env.example
+├── docker-compose.yml
+├── package.json
+└── README.md
+```
+
+Esta estructura podrá ajustarse a medida que evolucione el proyecto, siempre buscando mantener nombres claros, consistencia con el stack elegido y facilidad para encontrar archivos.
 
 ---
 
-# 🎯 Objetivo final
+## 🎯 Objetivo final
 
 Al finalizar el desarrollo se espera contar con una aplicación web funcional que permita:
 
@@ -430,9 +447,8 @@ Al finalizar el desarrollo se espera contar con una aplicación web funcional qu
 
 ---
 
-# 📌 Estado del proyecto
+## 📌 Estado del proyecto
 
-**En desarrollo**
+**En desarrollo — etapa inicial (planificación).**
 
-El proyecto se encuentra en etapa inicial. Las funcionalidades serán incorporadas progresivamente durante el período de desarrollo.
-
+Se creó el repositorio y este README. Las funcionalidades, el código y la estructura definitiva se incorporarán progresivamente durante el período de desarrollo.
