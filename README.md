@@ -54,7 +54,7 @@ El proyecto todavía no tiene código implementado (ver [Estado actual](#-estado
 ```bash
 # Clonar el repositorio
 git clone <url-del-repositorio>
-cd gestion-cine
+cd MetodologiaSistemasII
 
 # Instalar dependencias del backend
 cd backend
