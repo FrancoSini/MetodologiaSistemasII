@@ -1,21 +1,19 @@
 import express from "express";
-import sequelize from "./config/database";
-import "./models"; // registra los modelos y sus asociaciones 
+import cors from "cors";
+import routes from "./routes";
+import { errorHandler, notFound } from "./middlewares/errorHandler";
 
+// Acá solo se ARMA la app Express (middlewares + rutas).
+// Levantar el servidor y conectar la base está en server.ts.
 const app = express();
-const PORT = process.env.PORT || 3001;
 
-async function main() {
-  try {
-    await sequelize.authenticate();
-    console.log("Conexión a PostgreSQL establecida correctamente.");
-  } catch (error) {
-    console.error("No se pudo conectar a la base de datos:", error);
-  }
-}
+app.use(cors({ origin: process.env.CORS_ORIGIN || "http://localhost:5173" }));
+app.use(express.json());
 
-main();
+app.use("/api", routes);
 
-app.listen(PORT, () => {
-  console.log(`Servidor backend corriendo en el puerto ${PORT}`);
-});
+// Siempre al final: primero 404 y después el manejador de errores
+app.use(notFound);
+app.use(errorHandler);
+
+export default app;
