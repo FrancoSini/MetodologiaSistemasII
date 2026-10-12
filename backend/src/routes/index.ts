@@ -2,6 +2,13 @@ import { Router } from "express";
 import sequelize from "../config/database";
 import { asyncHandler } from "../utils/asyncHandler";
 
+
+
+import productosRoutes from "./productos.routes";
+import entradasRoutes from "./entradas.routes";
+import comprasRoutes from "./compras.routes";
+
+
 const router = Router();
 
 // GET /api/salud -> sirve para comprobar que el backend y la base responden
@@ -18,8 +25,10 @@ router.get(
 // router.use("/peliculas", peliculasRouter);
 // router.use("/salas", salasRouter);
 // router.use("/funciones", funcionesRouter);
-// router.use("/productos", productosRouter);
-// router.use("/compras", comprasRouter);
-// router.use("/entradas", entradasRouter);
+
+router.use("/productos", productosRoutes);
+router.use("/compras", comprasRoutes);
+router.use("/entradas", entradasRoutes);
 
 export default router;
+
