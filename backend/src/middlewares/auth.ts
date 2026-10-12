@@ -43,7 +43,7 @@ export const validarAdmin = (req: authRequest, res: Response, next: NextFunction
         return res.status(500).json({msg: 'Se intento verificar el rol sin validar el token primero'});
     }
 
-    if (req.usuario.rol !== 'Administrador') {
+    if (req.usuario.rol !== 'admin') {
         return res.status(403).json({
             ok: false,
             msg: 'No tiene privilegios para realizar esta acción'
