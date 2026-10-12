@@ -10,6 +10,10 @@ const app = express();
 app.use(cors({ origin: process.env.CORS_ORIGIN || "http://localhost:5173" }));
 app.use(express.json());
 
+app.get("/", (_req,res)=>{
+    res.json({mensaje: "Backend funcionando correctamente", estado: "ok"})
+})
+
 app.use("/api", routes);
 
 // Siempre al final: primero 404 y después el manejador de errores
