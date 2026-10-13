@@ -1,80 +1,55 @@
 
 import { Request, Response } from "express";
-import Producto from "../models/Producto";  
+import Producto from "../models/Producto";
+import { AppError } from "../utils/AppError";
 
 // GET /api/productos
 export const obtenerProductos = async (req: Request, res: Response) => {
-  try {
-    const productos = await Producto.findAll();
-    return res.status(200).json(productos);
-  } catch (error) {
-    return res.status(500).json({
-      mensaje: "Error al obtener los productos",
-    });
-  }
+  const productos = await Producto.findAll();
+  return res.status(200).json(productos);
 };
 
 // GET /api/productos/:id
 export const obtenerProductoPorId = async (req: Request, res: Response) => {
-  try {
-    const id = Number(req.params.id);
+  const id = Number(req.params.id);
 
-    if (!Number.isInteger(id) || id <= 0) {
-      return res.status(400).json({
-        mensaje: "El ID debe ser un número entero positivo",
-      });
-    }
-
-    const producto = await Producto.findByPk(id);
-
-    if (!producto) {
-      return res.status(404).json({
-        mensaje: "Producto no encontrado",
-      });
-    }
-
-    return res.status(200).json(producto);
-  } catch (error) {
-    return res.status(500).json({
-      mensaje: "Error al obtener el producto",
-    });
+  if (!Number.isInteger(id) || id <= 0) {
+    throw new AppError("El ID debe ser un número entero positivo", 400);
   }
+
+  const producto = await Producto.findByPk(id);
+
+  if (!producto) {
+    throw new AppError("Producto no encontrado", 404);
+  }
+
+  return res.status(200).json(producto);
 };
 
 // POST /api/productos
 export const crearProducto = async (req: Request, res: Response) => {
-  try {
-    const { nombre, precio, stock, categoria } = req.body;
+  const { nombre, precio, stock, categoria } = req.body;
 
-    if (
-      typeof nombre !== "string" ||
-      nombre.trim() === "" ||
-      typeof categoria !== "string" ||
-      categoria.trim() === "" ||
-      typeof precio !== "number" ||
-      !Number.isFinite(precio) ||
-      precio < 0 ||
-      !Number.isInteger(stock) ||
-      stock < 0
-    ) {
-      return res.status(400).json({
-        mensaje: "Los datos del producto son inválidos",
-      });
-    }
-
-    const producto = await Producto.create({
-      nombre: nombre.trim(),
-      precio,
-      stock,
-      categoria: categoria.trim(),
-    });
-
-    return res.status(201).json(producto);
-  } catch (error) {
-    return res.status(500).json({
-      mensaje: "Error al crear el producto",
-    });
+  if (
+    typeof nombre !== "string" ||
+    nombre.trim() === "" ||
+    typeof categoria !== "string" ||
+    categoria.trim() === "" ||
+    typeof precio !== "number" ||
+    !Number.isFinite(precio) ||
+    precio < 0 ||
+    !Number.isInteger(stock) ||
+    stock < 0
+  ) {
+    throw new AppError("Los datos del producto son inválidos", 400);
   }
+
+  const producto = await Producto.create({
+    nombre: nombre.trim(),
+    precio,
+    stock,
+    categoria: categoria.trim(),
+  });
+
+  return res.status(201).json(producto);
 };
-
-

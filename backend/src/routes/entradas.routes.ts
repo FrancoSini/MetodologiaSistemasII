@@ -2,6 +2,9 @@
 import { Router } from "express";
 import * as entradasController from "../controllers/entradas.controller";
 
+import { asyncHandler } from "../utils/asyncHandler";
+
+
 const router = Router();
 
 // Obtener todas las entradas
