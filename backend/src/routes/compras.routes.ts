@@ -2,6 +2,11 @@
 import { Router } from "express";
 import * as comprasController from "../controllers/compras.controller";
 
+
+import { asyncHandler } from "../utils/asyncHandler";
+
+
+
 const router = Router();
 
 // Obtener todas las compras

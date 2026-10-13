@@ -2,6 +2,9 @@
 import { Router } from "express";
 import * as productosController from "../controllers/productos.controller";
 
+import { asyncHandler } from "../utils/asyncHandler";
+
+
 const router = Router();
 
 // Obtener todos los productos
