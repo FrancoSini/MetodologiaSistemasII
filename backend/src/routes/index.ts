@@ -8,6 +8,9 @@ import productosRoutes from "./productos.routes";
 import entradasRoutes from "./entradas.routes";
 import comprasRoutes from "./compras.routes";
 
+import peliculasRouter from "./peliculas.routes";
+import salasRouter from "./salas.routes";
+import funcionesRouter from "./funciones.routes";
 
 const router = Router();
 
@@ -29,6 +32,10 @@ router.get(
 router.use("/productos", productosRoutes);
 router.use("/compras", comprasRoutes);
 router.use("/entradas", entradasRoutes);
+
+router.use("/peliculas", peliculasRouter);
+router.use("/salas", salasRouter);
+router.use("/funciones", funcionesRouter);
 
 export default router;
 
