@@ -6,6 +6,7 @@
 // todo se deshace junto. 
 import { Transaction } from "sequelize";
 import { Butaca } from "../models";
+import { AppError } from "../utils/AppError";
 
 // Genera las filas A, B, C... (hasta 26 filas)
 const letraDeFila = (indice: number) => String.fromCharCode(65 + indice);
@@ -19,7 +20,7 @@ export async function crearButacasDeSala(
   transaction?: Transaction
 ) {
   if (filas < 1 || filas > 26 || butacasPorFila < 1) {
-    throw new Error("Cantidad de filas o butacas inválida");
+    throw new AppError("Cantidad de filas o butacas inválida", 400);
   }
 
   const butacas = [];

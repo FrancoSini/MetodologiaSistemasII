@@ -2,6 +2,7 @@ import { Request, Response, NextFunction } from "express";
 import { Sala, Butaca } from "../models";
 import { crearButacasDeSala } from "../services/salaService";
 import sequelize from "../config/database";
+import { obtenerId } from "../utils/params";
 
 // Obtener todas las salas del cine
 export async function getSalas(req: Request, res: Response, next: NextFunction) {
@@ -16,8 +17,7 @@ export async function getSalas(req: Request, res: Response, next: NextFunction) 
 // Obtener una sala específica junto con sus butacas físicas asociadas
 export async function getSalaById(req: Request, res: Response, next: NextFunction) {
     try {
-        const { id } = req.params;
-        const sala = await Sala.findByPk(id as string, {
+        const sala = await Sala.findByPk(obtenerId(req.params.id), {
         include: [{ model: Butaca }],
         });
 

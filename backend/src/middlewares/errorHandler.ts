@@ -1,5 +1,5 @@
 import { NextFunction, Request, Response } from "express";
-import { ValidationError, UniqueConstraintError } from "sequelize";
+import { ValidationError, UniqueConstraintError, ForeignKeyConstraintError } from "sequelize";
 import { AppError } from "../utils/AppError";
 
 // 404 para cualquier ruta que no exista
@@ -18,6 +18,11 @@ export function errorHandler(err: unknown, _req: Request, res: Response, _next: 
     return res.status(409).json({
       error: { mensaje: "El recurso ya existe", detalles: err.errors.map((e) => e.message) },
     });
+  }
+
+  // Se referencia algo que no existe (ej: película o sala inexistente al crear una función)
+  if (err instanceof ForeignKeyConstraintError) {
+    return res.status(400).json({ error: { mensaje: "Se hace referencia a un recurso que no existe" } });
   }
 
   if (err instanceof ValidationError) {
