@@ -1,5 +1,6 @@
 import { Request, Response, NextFunction } from "express";
 import { Pelicula } from "../models";
+import { obtenerId } from "../utils/params";
 
 // Obtener todas las películas (con opción de filtrar si son próximos estrenos o no)
 export async function getPeliculas(req: Request, res: Response, next: NextFunction) {
@@ -20,8 +21,7 @@ export async function getPeliculas(req: Request, res: Response, next: NextFuncti
     // Obtener una película específica por su ID
     export async function getPeliculaById(req: Request, res: Response, next: NextFunction) {
     try {
-        const { id } = req.params;
-        const pelicula = await Pelicula.findByPk(id as string);
+        const pelicula = await Pelicula.findByPk(obtenerId(req.params.id));
 
         if (!pelicula) {
         return res.status(404).json({ error: { mensaje: "Película no encontrada" } });

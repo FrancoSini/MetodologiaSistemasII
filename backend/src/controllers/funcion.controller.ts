@@ -2,6 +2,7 @@ import { Request, Response, NextFunction } from "express";
 import { Funcion, Pelicula, Sala } from "../models";
 import { generarButacasDeFuncion } from "../services/funcionService";
 import sequelize from "../config/database";
+import { obtenerId } from "../utils/params";
 
 // Obtener todas las funciones (incluyendo los datos de su película y sala asociada)
 export async function getFunciones(req: Request, res: Response, next: NextFunction) {
@@ -18,8 +19,7 @@ export async function getFunciones(req: Request, res: Response, next: NextFuncti
     // Obtener una función específica por su ID
     export async function getFuncionById(req: Request, res: Response, next: NextFunction) {
     try {
-        const { id } = req.params;
-        const funcion = await Funcion.findByPk(id as string, {
+        const funcion = await Funcion.findByPk(obtenerId(req.params.id), {
         include: [Pelicula, Sala],
         });
 
