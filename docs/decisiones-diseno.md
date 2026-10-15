@@ -131,8 +131,34 @@ const reserva = new ReservaBuilder()
 
 ```
 
+PATRON FACADE 
 
+Para realizar una operación compleja (como confirmar la compra de una entrada de cine junto a productos del Candybar), el cliente tendría que conocer e invocar múltiples clases en una secuencia técnica rígida: verificar asientos, descontar stock de pochoclos, procesar el pago, generar el ticket QR y enviar notificaciones. La solucion seria crear una fachada (`CheckoutFacade`) que exponga un unico metodo sencillo de alto nivel. La fachada recibe la peticion y coordina por dentro la llamada a estos servicios internos. 
 
+EJEMPLO:
+```markdown
+// facade/CheckoutFacade.ts
+export class CheckoutFacade {
+ private asientos = new AsientoService();
+ private candybar = new CandybarStockService();
+ private pago = new PagoService();
+ private qr = new TicketQRService();
+
+// Expone una única operación
+public async realizarCompraCine(datos: {
+ asientos: string[];
+ productosCandybar: string[];
+ monto: number;
+ ordenId: string;
+}) {
+ this.asientos.reservar(datos.asientos);
+ this.candybar.descontar(datos.productosCandybar);
+ this.pago.cobrar(datos.monto);
+ this.qr.generar(datos.ordenId);
+
+ return { exito: true, mensaje: "Compra procesada de punta a punta" };
+} }
+```
 
 
 
