@@ -6,6 +6,7 @@
 // todo se deshace junto. 
 import { Transaction } from "sequelize";
 import { Butaca } from "../models";
+
 import { AppError } from "../utils/AppError";
 
 // Genera las filas A, B, C... (hasta 26 filas)
