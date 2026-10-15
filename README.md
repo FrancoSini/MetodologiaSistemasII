@@ -26,30 +26,33 @@ Este proyecto busca centralizar esa gestión en una sola plataforma: por un lado
 ## 🛠️ Tecnología elegida
 
 ### Frontend
-* **React** — Librería para la construcción de la interfaz.
+* **React 19** — Librería para la construcción de la interfaz.
 * **TypeScript** — Tipado estático para el código del cliente.
+* **Vite** — Herramienta de desarrollo y compilación del frontend.
 
 ### Backend
 * **Node.js** — Entorno de ejecución del servidor.
-* **Express.js** — Framework para el desarrollo de la API REST.
+* **Express.js 5** — Framework para el desarrollo de la API REST.
+* **TypeScript** — Tipado estático también en el servidor.
 
 ### Base de datos
-* **PostgreSQL** — Sistema gestor de base de datos.
+* **PostgreSQL 16** — Sistema gestor de base de datos.
 * **Sequelize** — ORM para la comunicación entre Node.js y PostgreSQL.
+
+### Seguridad
+* **JWT** (`jsonwebtoken`) — Autenticación de usuarios.
+* **bcrypt** — Encriptación de contraseñas.
 
 ### Herramientas
 * **Git / GitHub** — Control de versiones y trabajo colaborativo.
-* **Docker / Docker Compose** — Contenerización y entorno de desarrollo común para todo el equipo.
+* **Docker / Docker Compose** — Hoy levanta la base de datos PostgreSQL (ver [Docker](#-docker)).
 * **Postman** — Pruebas sobre la API REST.
-* **JWT** — Autenticación de usuarios.
 
 > Esta selección de tecnologías fue definida por el equipo para el Taller 1. Puede ajustarse si durante el desarrollo aparece una necesidad concreta que lo justifique.
 
 ---
 
 ## 📦 Cómo instalar dependencias
-
-El proyecto todavía no tiene código implementado (ver [Estado actual](#-estado-actual-y-pendientes-conocidos)), por lo que estos pasos describen **cómo se instalará** una vez que arranque el desarrollo del backend y el frontend:
 
 ```bash
 # Clonar el repositorio
@@ -65,64 +68,92 @@ cd ../frontend
 npm install
 ```
 
-También se va a proveer un archivo `.env.example` con las variables de entorno necesarias (conexión a PostgreSQL, secreto de JWT, puertos, etc.), que cada integrante deberá copiar como `.env` y completar con sus propios valores locales.
+El repositorio incluye un archivo `.env.example` con las variables de entorno necesarias (puerto, conexión a PostgreSQL, secreto de JWT, origen permitido para CORS, etc.). Cada integrante debe copiarlo como `.env` y completar sus valores locales. El backend lee el `.env` de la carpeta desde la que se ejecuta, por lo que conviene dejarlo en `backend/`:
+
+```bash
+cp .env.example backend/.env
+```
+
+Los datos de conexión a la base (`DB_NAME`, `DB_USER`, `DB_PASSWORD`) tienen que coincidir con los de `docker-compose.yml`. Además hay que definir `JWT_SECRET`.
 
 ---
 
 ## ▶️ Cómo ejecutar el proyecto
 
-**Opción con Docker (forma prevista para el entorno de desarrollo):**
+**1. Base de datos (PostgreSQL con Docker):**
 
 ```bash
-docker-compose up --build
+docker-compose up -d db
 ```
 
-Esto debería levantar en un futuro los contenedores de backend, frontend y PostgreSQL con una configuración común para todo el equipo.
-
-**Opción manual (mientras no esté armado el Docker Compose):**
+**2. Backend** (en `http://localhost:3001`):
 
 ```bash
-# Backend
 cd backend
 npm run dev
-
-# Frontend (en otra terminal)
-cd frontend
-npm start
 ```
 
-> ⚠️ Por ahora estos comandos son la guía planeada de ejecución. Todavía no hay `package.json`, `docker-compose.yml` ni código funcional en el repositorio, así que no pueden ejecutarse aún tal cual.
+Al iniciar, el backend se conecta a PostgreSQL y crea las tablas que falten (no borra ni modifica las existentes). Para comprobar que funciona:
+
+```text
+GET http://localhost:3001/api/salud
+```
+
+**3. Frontend** (en otra terminal, en `http://localhost:5173`):
+
+```bash
+cd frontend
+npm run dev
+```
+
+> ⚠️ El frontend todavía muestra la plantilla inicial de Vite: las pantallas de la aplicación están pendientes.
 
 ---
 
 ## 📌 Estado actual y pendientes conocidos
 
-**Estado actual:** el proyecto está en etapa de planificación. Se creó el repositorio y este README inicial, pero **todavía no se escribió código** (ni backend ni frontend).
+**Estado actual:** el backend está en desarrollo y ya es funcional para la cartelera. El frontend tiene solo la plantilla inicial.
+
+| Módulo | Estado |
+| --- | --- |
+| Modelo de datos (10 modelos) | ✅ Implementado |
+| Películas, salas y funciones | ✅ Implementado (consulta y alta) |
+| Generación de butacas (por sala y por función) | ✅ Implementado |
+| Manejo central de errores | ✅ Implementado |
+| Productos, compras y entradas | 🟡 Controllers y rutas básicos; falta el flujo completo |
+| Autenticación (registro/login con JWT) | 🟡 Controller y middlewares hechos; las rutas todavía no están montadas |
+| Pagos simulados | ⏳ Pendiente (el medio de pago se registra en la compra, sin procesamiento) |
+| Selección de butacas sin doble venta | ⏳ Pendiente (el modelo ya lo respalda, falta la lógica de compra) |
+| Frontend | ⏳ Plantilla inicial de Vite |
 
 **Pendientes conocidos:**
 
 * [ ] Definir y bocetar el diseño de las pantallas principales (cartelera, selección de butacas, checkout).
-* [ ] Modelar la base de datos (usuarios, películas, salas, funciones, butacas, compras, entradas, productos).
-* [ ] Definir la estructura final de carpetas del backend y frontend.
-* [ ] Configurar el proyecto base de backend (Express + Sequelize) y frontend (React + TypeScript).
-* [ ] Armar el `docker-compose.yml` con los servicios (backend, frontend, PostgreSQL).
+* [x] Modelar la base de datos (usuarios, películas, salas, funciones, butacas, compras, entradas, productos).
+* [x] Definir la estructura de carpetas del backend (la del frontend queda pendiente).
+* [x] Configurar el proyecto base de backend (Express + Sequelize) y frontend (React + TypeScript + Vite).
+* [ ] Completar el `docker-compose.yml` (hoy solo levanta PostgreSQL; faltan backend y frontend).
 * [ ] Implementar la simulación del módulo de pagos (débito, crédito, efectivo).
-* [ ] Implementar autenticación (registro/login con JWT).
-* [ ] Implementar los módulos de películas, funciones, salas y butacas.
+* [ ] Montar las rutas de autenticación y aplicar los middlewares de token y rol.
+* [x] Implementar los módulos de películas, funciones y salas (consulta y alta).
+* [ ] Completar películas, salas y funciones con edición y baja (`PUT` / `DELETE`).
+* [ ] Exponer las butacas de cada función (`GET /api/funciones/:id/butacas`).
 * [ ] Implementar selección de butacas evitando doble venta para la misma función.
-* [ ] Implementar Candy Bar y flujo de compra completo.
+* [ ] Implementar Candy Bar y flujo de compra completo (hoy el total llega desde el cliente y no se validan butacas).
 * [ ] Armar colección de Postman para pruebas de la API.
+* [ ] Agregar datos de prueba (seeders) y tests automáticos.
+* [x] Manejo central de errores (`AppError` + `errorHandler`).
 
 ---
 
 ## 🏗️ Arquitectura
 
-El sistema seguirá una arquitectura cliente-servidor basada en una API REST.
+El sistema sigue una arquitectura cliente-servidor basada en una API REST.
 
 ```text
 ┌─────────────────────────────────┐
 │            FRONTEND             │
-│       React + TypeScript        │
+│  React + TypeScript + Vite      │
 │                                  │
 │  Cartelera                      │
 │  Próximos estrenos              │
@@ -136,7 +167,7 @@ El sistema seguirá una arquitectura cliente-servidor basada en una API REST.
                 ▼
 ┌─────────────────────────────────┐
 │             BACKEND              │
-│       Node.js + Express          │
+│  Node.js + Express + TypeScript  │
 │                                  │
 │  Autenticación                  │
 │  Películas                      │
@@ -163,6 +194,32 @@ El sistema seguirá una arquitectura cliente-servidor basada en una API REST.
 │  Productos                      │
 └─────────────────────────────────┘
 ```
+
+### Capas del backend
+
+```text
+routes  →  controllers  →  services  →  models
+```
+
+* **routes:** conectan cada URL con su controller.
+* **controllers:** leen la petición HTTP y devuelven la respuesta.
+* **services:** contienen reglas de negocio que se reutilizan (por ejemplo, generar las butacas de una sala o de una función).
+* **models:** definen las tablas y relaciones con Sequelize.
+* **middlewares y utils:** autenticación, manejo de errores y funciones de apoyo.
+
+### Estado de cada butaca por función
+
+Una butaca física existe una sola vez, pero su estado (`disponible`, `reservada`, `vendida`) se guarda **por función** en la tabla `FuncionButaca`. Un índice único sobre (función, butaca) impide duplicar un mismo asiento en la misma función. Al crear una función se generan automáticamente todas sus butacas como `disponible`.
+
+### Manejo de errores
+
+Toda respuesta de error sale con el mismo formato:
+
+```json
+{ "error": { "mensaje": "Sala no encontrada" } }
+```
+
+Los errores esperados se lanzan con `AppError` (mensaje y código HTTP) y el `errorHandler` los convierte en respuesta. Códigos que maneja: `400` (datos o ids inválidos, referencias inexistentes), `404` (recurso o ruta inexistente), `409` (el recurso ya existe) y `500` (error interno).
 
 ---
 
@@ -307,76 +364,88 @@ Obtiene sus entradas
 
 ---
 
-## 🌐 API REST (propuesta inicial)
+## 🌐 API REST
 
-El backend expondrá una API REST para la comunicación entre el frontend y el servidor. Estos endpoints son una propuesta inicial y podrán modificarse a medida que avance el desarrollo.
+El backend expone una API REST para la comunicación entre el frontend y el servidor. Referencias: ✅ implementado · ⏳ pendiente (propuesta inicial, puede modificarse a medida que avance el desarrollo).
+
+### Estado del servidor
+```text
+GET    /api/salud                    ✅  Comprueba que el backend y la base responden
+```
 
 ### Autenticación
 ```text
-POST   /api/autenticacion/registro
-POST   /api/autenticacion/login
+POST   /api/autenticacion/registro   ⏳  (controller hecho, ruta sin montar)
+POST   /api/autenticacion/login      ⏳  (controller hecho, ruta sin montar)
 ```
 
 ### Películas
 ```text
-GET    /api/peliculas
-GET    /api/peliculas/:id
-POST   /api/peliculas
-PUT    /api/peliculas/:id
-DELETE /api/peliculas/:id
+GET    /api/peliculas                ✅  (filtro opcional: ?proximoEstreno=true|false)
+GET    /api/peliculas/:id            ✅
+POST   /api/peliculas                ✅
+PUT    /api/peliculas/:id            ⏳
+DELETE /api/peliculas/:id            ⏳
 ```
 
 ### Salas
 ```text
-GET    /api/salas
-GET    /api/salas/:id
-POST   /api/salas
-PUT    /api/salas/:id
-DELETE /api/salas/:id
+GET    /api/salas                    ✅
+GET    /api/salas/:id                ✅  (incluye sus butacas)
+POST   /api/salas                    ✅  (crea la sala y sus butacas: filas y butacasPorFila)
+PUT    /api/salas/:id                ⏳
+DELETE /api/salas/:id                ⏳
 ```
 
 ### Funciones
 ```text
-GET    /api/funciones
-GET    /api/funciones/:id
-POST   /api/funciones
-PUT    /api/funciones/:id
-DELETE /api/funciones/:id
+GET    /api/funciones                ✅  (incluye película y sala)
+GET    /api/funciones/:id            ✅
+POST   /api/funciones                ✅  (genera las butacas de la función como "disponible")
+PUT    /api/funciones/:id            ⏳
+DELETE /api/funciones/:id            ⏳
 ```
 
 ### Butacas
 ```text
-GET    /api/funciones/:id/butacas
-POST   /api/funciones/:id/butacas
+GET    /api/funciones/:id/butacas    ⏳
+POST   /api/funciones/:id/butacas    ⏳
 ```
 
 ### Productos / Candy Bar
 ```text
-GET    /api/productos
-GET    /api/productos/:id
-POST   /api/productos
-PUT    /api/productos/:id
-DELETE /api/productos/:id
+GET    /api/productos                ✅
+GET    /api/productos/:id            ✅
+POST   /api/productos                ✅
+PUT    /api/productos/:id            ⏳
+DELETE /api/productos/:id            ⏳
 ```
 
 ### Compras
 ```text
-GET    /api/compras
-GET    /api/compras/:id
-POST   /api/compras
+GET    /api/compras                  ✅
+GET    /api/compras/:id              ✅
+POST   /api/compras                  ✅  (registro básico; falta validar butacas y calcular el total)
 ```
 
 ### Entradas
 ```text
-GET    /api/entradas
-GET    /api/entradas/:id
+GET    /api/entradas                 ✅
+GET    /api/entradas/:id             ✅
+POST   /api/entradas                 ✅
 ```
 
 ---
 
 ## 🐳 Docker
 
-Docker será utilizado para facilitar la configuración y ejecución del entorno de desarrollo. Docker Compose permitirá levantar los servicios necesarios (backend, frontend y PostgreSQL) utilizando una configuración común para todos los integrantes del proyecto. Todavía no está implementado.
+Docker facilita la configuración del entorno de desarrollo. Hoy el archivo `docker-compose.yml` levanta **solo la base de datos** (PostgreSQL 16, base `gestion_cine`, puerto 5432, con un volumen para conservar los datos):
+
+```bash
+docker-compose up -d db
+```
+
+Todavía no hay contenedores para el backend ni para el frontend: se ejecutan de forma manual con `npm run dev`. Completar el `docker-compose.yml` con ambos servicios es un pendiente.
 
 ---
 
@@ -384,43 +453,56 @@ Docker será utilizado para facilitar la configuración y ejecución del entorno
 
 Se utilizará **Postman** para realizar pruebas sobre la API REST, comprobando respuestas HTTP, registro de usuarios, autenticación, creación/actualización/eliminación de recursos, validaciones, manejo de errores, autorización según roles, relaciones entre entidades, disponibilidad de butacas y registro de compras.
 
+Por ahora las pruebas son **manuales** (todavía no hay colección de Postman ni tests automáticos). Algunos casos que se verifican a mano:
+
+| Pedido | Respuesta esperada |
+| --- | --- |
+| `GET /api/salas/abc` | `400` — "El ID debe ser un número entero positivo" |
+| `GET /api/salas/99` (inexistente) | `404` — "Sala no encontrada" |
+| `POST /api/funciones` con una película inexistente | `400` — "Se hace referencia a un recurso que no existe" |
+| `POST /api/salas` con más de 26 filas | `400` — "Cantidad de filas o butacas inválida" |
+| Ruta inexistente | `404` — "Ruta no encontrada" |
+
 ---
 
-## 📁 Estructura propuesta del proyecto
-
-Todavía no existe código, por lo que esta es la organización de carpetas que el equipo planea seguir, coherente con el stack elegido (Node/Express en el backend, React/TypeScript en el frontend):
+## 📁 Estructura del proyecto
 
 ```text
 gestion-cine/
 │
 ├── backend/
-│   ├── config/
-│   ├── controllers/
-│   ├── models/
-│   ├── routes/
-│   ├── middlewares/
-│   ├── services/
-│   ├── migrations/
-│   ├── seeders/
-│   └── app.js
+│   ├── package.json
+│   ├── tsconfig.json
+│   └── src/
+│       ├── app.ts            # arma la app Express (middlewares y rutas)
+│       ├── server.ts         # conecta la base y levanta el servidor
+│       ├── config/           # conexión a PostgreSQL (Sequelize)
+│       ├── models/           # Usuario, Película, Sala, Butaca, Función, FuncionButaca,
+│       │                     # Producto, Compra, CompraProducto, Entrada
+│       ├── routes/           # una ruta por módulo + index
+│       ├── controllers/      # lógica de cada endpoint
+│       ├── services/         # reglas reutilizables (butacas de sala y de función)
+│       ├── middlewares/      # auth (token y rol) y errorHandler
+│       └── utils/            # AppError, asyncHandler, jwt, params, validar
 │
 ├── frontend/
-│   ├── src/
-│   │   ├── components/
-│   │   ├── pages/
-│   │   ├── services/
-│   │   └── types/
-│   └── public/
+│   └── src/                  # React + TypeScript + Vite (plantilla inicial)
 │
-├── docker/
+├── docs/
+│   └── decisiones-diseno.md  # análisis de diseño del Taller II
 │
 ├── .env.example
 ├── docker-compose.yml
-├── package.json
 └── README.md
 ```
 
-Esta estructura podrá ajustarse a medida que evolucione el proyecto, siempre buscando mantener nombres claros, consistencia con el stack elegido y facilidad para encontrar archivos.
+Quedan por incorporar `migrations/`, `seeders/`, los `Dockerfile` del backend y frontend, y la organización interna del frontend (`components/`, `pages/`, `services/`, `types/`). Esta estructura podrá ajustarse a medida que evolucione el proyecto, siempre buscando mantener nombres claros, consistencia con el stack elegido y facilidad para encontrar archivos.
+
+---
+
+## 📚 Documentación de diseño
+
+El análisis de diseño y mantenibilidad del Taller II (diagnóstico, alternativas, decisión y trade-offs sobre el código real) está en [`docs/decisiones-diseno.md`](docs/decisiones-diseno.md).
 
 ---
 
@@ -449,6 +531,6 @@ Al finalizar el desarrollo se espera contar con una aplicación web funcional qu
 
 ## 📌 Estado del proyecto
 
-**En desarrollo — etapa inicial (planificación).**
+**En desarrollo — backend en construcción.**
 
-Se creó el repositorio y este README. Las funcionalidades, el código y la estructura definitiva se incorporarán progresivamente durante el período de desarrollo.
+La base del backend, el modelo de datos y la cartelera (películas, salas y funciones) ya están implementados. Siguen pendientes la autenticación, el flujo completo de compra con pagos simulados y las pantallas del frontend. Las funcionalidades se incorporarán progresivamente durante el período de desarrollo.
