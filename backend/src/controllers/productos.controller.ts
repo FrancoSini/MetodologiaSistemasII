@@ -1,4 +1,3 @@
-
 import { Request, Response } from "express";
 import Producto from "../models/Producto";
 import { AppError } from "../utils/AppError";
@@ -29,20 +28,6 @@ export const obtenerProductoPorId = async (req: Request, res: Response) => {
 // POST /api/productos
 export const crearProducto = async (req: Request, res: Response) => {
   const { nombre, precio, stock, categoria } = req.body;
-
-  if (
-    typeof nombre !== "string" ||
-    nombre.trim() === "" ||
-    typeof categoria !== "string" ||
-    categoria.trim() === "" ||
-    typeof precio !== "number" ||
-    !Number.isFinite(precio) ||
-    precio < 0 ||
-    !Number.isInteger(stock) ||
-    stock < 0
-  ) {
-    throw new AppError("Los datos del producto son inválidos", 400);
-  }
 
   const producto = await Producto.create({
     nombre: nombre.trim(),
