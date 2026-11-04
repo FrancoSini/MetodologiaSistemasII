@@ -5,19 +5,26 @@ import {
   getPeliculas,
   getPeliculaById,
   createPelicula,
+  updatePelicula,
 } from "../controllers/pelicula.controller";
 
-import { validarCrearPelicula } from "../middlewares/validarPelicula";
+import {
+  validarCrearPelicula,
+  validarActualizarPelicula,
+} from "../middlewares/validarPelicula";
 
 const router = Router();
 
-// Consultar todas las películas.
+// Listar películas.
 router.get("/", getPeliculas);
 
-// Consultar una película por ID.
+// Consultar película por ID.
 router.get("/:id", getPeliculaById);
 
-// Crear una película, validando antes los datos.
+// Crear película.
 router.post("/", validarCrearPelicula, createPelicula);
+
+// Actualizar película.
+router.put("/:id", validarActualizarPelicula, updatePelicula);
 
 export default router;

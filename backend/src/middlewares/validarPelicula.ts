@@ -66,3 +66,77 @@ export const validarCrearPelicula = (
 
   next();
 };
+
+export const validarActualizarPelicula = (
+  req: Request,
+  _res: Response,
+  next: NextFunction
+) => {
+  const datos = req.body;
+
+  if (
+    !datos ||
+    typeof datos !== "object" ||
+    Array.isArray(datos) ||
+    Object.keys(datos).length === 0
+  ) {
+    throw new AppError(
+      "Debe enviar al menos un campo para actualizar",
+      400
+    );
+  }
+
+  const camposPermitidos = [
+    "titulo",
+    "genero",
+    "duracionMinutos",
+    "clasificacion",
+    "sinopsis",
+    "posterUrl",
+    "trailerUrl",
+    "esProximoEstreno",
+  ];
+
+  for (const [campo, valor] of Object.entries(datos)) {
+    if (!camposPermitidos.includes(campo)) {
+      throw new AppError(`Campo no permitido: ${campo}`, 400);
+    }
+
+    if (
+      ["titulo", "genero", "clasificacion", "sinopsis"]
+        .includes(campo) &&
+      !esTextoValido(valor)
+    ) {
+      throw new AppError(`${campo} debe ser un texto válido`, 400);
+    }
+
+    if (
+      campo === "duracionMinutos" &&
+      !esDuracionValida(valor)
+    ) {
+      throw new AppError(
+        "La duración debe ser un entero positivo",
+        400
+      );
+    }
+
+    if (
+      ["posterUrl", "trailerUrl"].includes(campo) &&
+      !esUrlValida(valor)
+    ) {
+      throw new AppError(`${campo} debe ser una URL válida`, 400);
+    }
+
+    if (
+      campo === "esProximoEstreno" &&
+      typeof valor !== "boolean"
+    ) {
+      throw new AppError(
+        "esProximoEstreno debe ser true o false",
+        400
+      );
+    }
+  }
+
+  next();
+};

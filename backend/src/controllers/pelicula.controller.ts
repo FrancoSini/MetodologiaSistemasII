@@ -1,7 +1,7 @@
 import { Request, Response, NextFunction } from "express";
 import { Pelicula } from "../models";
 import { obtenerId } from "../utils/params";
-
+import { actualizarPelicula } from "../services/peliculaService";
 // Obtener todas las películas (con opción de filtrar si son próximos estrenos o no)
 
 export async function getPeliculas(
@@ -75,4 +75,23 @@ export async function createPelicula(req: Request, res: Response, next: NextFunc
     } catch (error) {
         next(error);
     }
+}
+
+export async function updatePelicula(
+  req: Request,
+  res: Response,
+  next: NextFunction
+) {
+  try {
+    const id = obtenerId(req.params.id);
+
+    const peliculaActualizada = await actualizarPelicula(
+      id,
+      req.body
+    );
+
+    return res.status(200).json(peliculaActualizada);
+  } catch (error) {
+    next(error);
+  }
 }
