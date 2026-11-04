@@ -3,20 +3,42 @@ import { Pelicula } from "../models";
 import { obtenerId } from "../utils/params";
 
 // Obtener todas las películas (con opción de filtrar si son próximos estrenos o no)
-export async function getPeliculas(req: Request, res: Response, next: NextFunction) {
-    try {
-        const { proximoEstreno } = req.query;
-        
-        const whereClause = proximoEstreno !== undefined 
-        ? { esProximoEstreno: proximoEstreno === "true" } 
+
+export async function getPeliculas(
+  req: Request,
+  res: Response,
+  next: NextFunction
+) {
+  try {
+    const { proximoEstreno } = req.query;
+
+    if (
+      proximoEstreno !== undefined &&
+      proximoEstreno !== "true" &&
+      proximoEstreno !== "false"
+    ) {
+      return res.status(400).json({
+        error: {
+          mensaje: "proximoEstreno debe ser true o false",
+        },
+      });
+    }
+
+    const whereClause =
+      proximoEstreno !== undefined
+        ? { esProximoEstreno: proximoEstreno === "true" }
         : {};
 
-        const peliculas = await Pelicula.findAll({ where: whereClause });
-        return res.json(peliculas);
-    } catch (error) {
-        next(error);
-    }
-    }
+    const peliculas = await Pelicula.findAll({
+      where: whereClause,
+    });
+
+    return res.status(200).json(peliculas);
+  } catch (error) {
+    next(error);
+  }
+}
+
 
     // Obtener una película específica por su ID
     export async function getPeliculaById(req: Request, res: Response, next: NextFunction) {
