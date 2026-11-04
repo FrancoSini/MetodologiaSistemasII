@@ -2,6 +2,7 @@ import { Request, Response, NextFunction } from "express";
 import { Pelicula } from "../models";
 import { obtenerId } from "../utils/params";
 import { actualizarPelicula } from "../services/peliculaService";
+import { eliminarPelicula,} from "../services/peliculaService";
 // Obtener todas las películas (con opción de filtrar si son próximos estrenos o no)
 
 export async function getPeliculas(
@@ -91,6 +92,22 @@ export async function updatePelicula(
     );
 
     return res.status(200).json(peliculaActualizada);
+  } catch (error) {
+    next(error);
+  }
+}
+
+export async function deletePelicula(
+  req: Request,
+  res: Response,
+  next: NextFunction
+) {
+  try {
+    const id = obtenerId(req.params.id);
+
+    await eliminarPelicula(id);
+
+    return res.status(204).send();
   } catch (error) {
     next(error);
   }

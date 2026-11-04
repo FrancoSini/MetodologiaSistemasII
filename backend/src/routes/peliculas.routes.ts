@@ -6,6 +6,7 @@ import {
   getPeliculaById,
   createPelicula,
   updatePelicula,
+  deletePelicula,
 } from "../controllers/pelicula.controller";
 
 import {
@@ -26,5 +27,6 @@ router.post("/", validarCrearPelicula, createPelicula);
 
 // Actualizar película.
 router.put("/:id", validarActualizarPelicula, updatePelicula);
+router.delete("/:id", deletePelicula);
 
 export default router;

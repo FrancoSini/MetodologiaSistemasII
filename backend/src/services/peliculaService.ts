@@ -1,5 +1,4 @@
-
-import { Pelicula } from "../models";
+import { Pelicula, Funcion } from "../models";
 import { AppError } from "../utils/AppError";
 
 // Datos que se pueden modificar de una película.
@@ -28,4 +27,27 @@ export async function actualizarPelicula(
   await pelicula.update(datos);
 
   return pelicula;
+}
+
+export async function eliminarPelicula(id: number): Promise<void> {
+  const pelicula = await Pelicula.findByPk(id);
+
+  if (!pelicula) {
+    throw new AppError("Película no encontrada", 404);
+  }
+
+  // Comprobar si la película tiene funciones asociadas.
+  const cantidadFunciones = await Funcion.count({
+    where: { peliculaId: id },
+  });
+
+  if (cantidadFunciones > 0) {
+    throw new AppError(
+      "No se puede eliminar la película porque tiene funciones asociadas",
+      409
+    );
+  }
+
+  // Eliminar únicamente si no existen funciones relacionadas.
+  await pelicula.destroy();
 }
