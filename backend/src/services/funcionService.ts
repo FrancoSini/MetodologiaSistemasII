@@ -1,4 +1,4 @@
-import { Transaction } from "sequelize";
+import {Op, Transaction } from "sequelize";
 import { Butaca, Funcion, FuncionButaca } from "../models";
 import { AppError } from "../utils/AppError";
 import sequelize from "../config/database";
@@ -167,6 +167,118 @@ export async function crearFuncionConValidacion(
     return nuevaFuncion;
   });
 }
+
+interface ActualizarHorarioDTO {
+  fecha?: string;
+  hora?: string;
+}
+
+export async function actualizarHorarioFuncion(
+  id: number,
+  datos: ActualizarHorarioDTO
+) {
+  return sequelize.transaction(async (t) => {
+    // Primero consultamos la sala para bloquearla.
+    const funcionActual = await Funcion.findByPk(id, {
+      transaction: t,
+    });
+
+    if (!funcionActual) {
+      throw new AppError("Función no encontrada", 404);
+    }
+
+    // Mismo bloqueo utilizado al crear funciones.
+    const sala = await Sala.findByPk(funcionActual.salaId, {
+      transaction: t,
+      lock: t.LOCK.UPDATE,
+    });
+
+    if (!sala) {
+      throw new AppError("Sala no encontrada", 404);
+    }
+
+    // Volvemos a consultar la función bajo bloqueo.
+    const funcion = await Funcion.findByPk(id, {
+      transaction: t,
+      lock: t.LOCK.UPDATE,
+    });
+
+    if (!funcion) {
+      throw new AppError("Función no encontrada", 404);
+    }
+
+    // No modificar una función con butacas reservadas o vendidas.
+    const butacas = await FuncionButaca.findAll({
+      where: { funcionId: id },
+      transaction: t,
+      lock: t.LOCK.UPDATE,
+    });
+
+    if (butacas.some((butaca) => butaca.estado !== "disponible")) {
+      throw new AppError(
+        "No se puede modificar una función con butacas reservadas o vendidas",
+        409
+      );
+    }
+
+    const nuevaFecha = datos.fecha ?? funcion.fecha;
+    const nuevaHora = datos.hora ?? funcion.hora;
+
+    const inicioNuevo = obtenerInstante(nuevaFecha, nuevaHora);
+
+    const pelicula = await Pelicula.findByPk(funcion.peliculaId, {
+      transaction: t,
+    });
+
+    if (!pelicula) {
+      throw new AppError("Película no encontrada", 404);
+    }
+
+    const finNuevo =
+      inicioNuevo + pelicula.duracionMinutos * 60_000;
+
+    // Verificar las otras funciones de la sala.
+    const otrasFunciones = await Funcion.findAll({
+      where: {
+        salaId: funcion.salaId,
+        id: { [Op.ne]: id },
+      },
+      include: [{ model: Pelicula, required: true }],
+      transaction: t,
+    });
+
+    for (const otra of otrasFunciones) {
+      const otraPelicula = otra.get("Pelicula") as Pelicula;
+
+      const inicioExistente = obtenerInstante(
+        otra.fecha,
+        otra.hora
+      );
+
+      const finExistente =
+        inicioExistente +
+        otraPelicula.duracionMinutos * 60_000;
+
+      if (
+        inicioNuevo < finExistente &&
+        finNuevo > inicioExistente
+      ) {
+        throw new AppError(
+          "La sala ya tiene una función en ese horario",
+          409
+        );
+      }
+    }
+
+    await funcion.update(
+      { fecha: nuevaFecha, hora: nuevaHora },
+      { transaction: t }
+    );
+
+    return funcion;
+  });
+}
+
 
 
 //Qué hace: cuando se crea una función, busca todas las butacas físicas de su sala y crea una fila de FuncionButaca por cada una, 
