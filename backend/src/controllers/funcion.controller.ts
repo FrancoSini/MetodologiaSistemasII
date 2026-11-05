@@ -4,6 +4,7 @@ import {
   crearFuncionConValidacion,
   obtenerButacasDeFuncion,
   actualizarHorarioFuncion,
+  cancelarFuncion,
 } from "../services/funcionService";
 import { obtenerId } from "../utils/params";
 import { AppError } from "../utils/AppError";
@@ -122,6 +123,22 @@ export async function updateFuncion(
       fecha,
       hora,
     });
+
+    return res.status(200).json(funcion);
+  } catch (error) {
+    next(error);
+  }
+}
+
+export async function cancelFuncion(
+  req: Request,
+  res: Response,
+  next: NextFunction
+) {
+  try {
+    const id = obtenerId(req.params.id);
+
+    const funcion = await cancelarFuncion(id);
 
     return res.status(200).json(funcion);
   } catch (error) {

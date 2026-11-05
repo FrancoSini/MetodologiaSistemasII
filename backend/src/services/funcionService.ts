@@ -1,9 +1,13 @@
-import {Op, Transaction } from "sequelize";
-import { Butaca, Funcion, FuncionButaca } from "../models";
-import { AppError } from "../utils/AppError";
+import { Op, Transaction } from "sequelize";
 import sequelize from "../config/database";
-import { Pelicula, Sala } from "../models";
-
+import {
+  Butaca,
+  Funcion,
+  FuncionButaca,
+  Pelicula,
+  Sala,
+} from "../models";
+import { AppError } from "../utils/AppError";
 // Al crear una función hay que generar una fila FuncionButaca por cada butaca
 // de la sala, todas "disponible". Ahí vive el estado de cada asiento PARA ESA función.
 export async function generarButacasDeFuncion(funcion: Funcion, transaction?: Transaction) {
@@ -126,7 +130,9 @@ export async function crearFuncionConValidacion(
     // Incluimos todas las fechas para detectar incluso
     // funciones que cruzan la medianoche.
     const funciones = await Funcion.findAll({
-      where: { salaId },
+      where: { salaId ,
+        estado: "programada" ,
+      },
       include: [{ model: Pelicula, required: true }],
       transaction: t,
     });
@@ -168,17 +174,18 @@ export async function crearFuncionConValidacion(
   });
 }
 
+
 interface ActualizarHorarioDTO {
   fecha?: string;
   hora?: string;
 }
 
+// PUT /api/funciones/:id
 export async function actualizarHorarioFuncion(
   id: number,
   datos: ActualizarHorarioDTO
 ) {
   return sequelize.transaction(async (t) => {
-    // Primero consultamos la sala para bloquearla.
     const funcionActual = await Funcion.findByPk(id, {
       transaction: t,
     });
@@ -187,7 +194,7 @@ export async function actualizarHorarioFuncion(
       throw new AppError("Función no encontrada", 404);
     }
 
-    // Mismo bloqueo utilizado al crear funciones.
+    // Bloqueamos la sala para evitar conflictos de horarios.
     const sala = await Sala.findByPk(funcionActual.salaId, {
       transaction: t,
       lock: t.LOCK.UPDATE,
@@ -197,7 +204,6 @@ export async function actualizarHorarioFuncion(
       throw new AppError("Sala no encontrada", 404);
     }
 
-    // Volvemos a consultar la función bajo bloqueo.
     const funcion = await Funcion.findByPk(id, {
       transaction: t,
       lock: t.LOCK.UPDATE,
@@ -207,14 +213,26 @@ export async function actualizarHorarioFuncion(
       throw new AppError("Función no encontrada", 404);
     }
 
-    // No modificar una función con butacas reservadas o vendidas.
+    // No modificar una función cancelada.
+    if (funcion.estado === "cancelada") {
+      throw new AppError(
+        "No se puede modificar una función cancelada",
+        409
+      );
+    }
+
+    // Verificar que no tenga butacas reservadas o vendidas.
     const butacas = await FuncionButaca.findAll({
       where: { funcionId: id },
       transaction: t,
       lock: t.LOCK.UPDATE,
     });
 
-    if (butacas.some((butaca) => butaca.estado !== "disponible")) {
+    if (
+      butacas.some(
+        (butaca) => butaca.estado !== "disponible"
+      )
+    ) {
       throw new AppError(
         "No se puede modificar una función con butacas reservadas o vendidas",
         409
@@ -224,11 +242,15 @@ export async function actualizarHorarioFuncion(
     const nuevaFecha = datos.fecha ?? funcion.fecha;
     const nuevaHora = datos.hora ?? funcion.hora;
 
-    const inicioNuevo = obtenerInstante(nuevaFecha, nuevaHora);
+    const inicioNuevo = obtenerInstante(
+      nuevaFecha,
+      nuevaHora
+    );
 
-    const pelicula = await Pelicula.findByPk(funcion.peliculaId, {
-      transaction: t,
-    });
+    const pelicula = await Pelicula.findByPk(
+      funcion.peliculaId,
+      { transaction: t }
+    );
 
     if (!pelicula) {
       throw new AppError("Película no encontrada", 404);
@@ -237,16 +259,23 @@ export async function actualizarHorarioFuncion(
     const finNuevo =
       inicioNuevo + pelicula.duracionMinutos * 60_000;
 
-    // Verificar las otras funciones de la sala.
+    // Buscamos otras funciones programadas en la misma sala.
     const otrasFunciones = await Funcion.findAll({
       where: {
         salaId: funcion.salaId,
+        estado: "programada",
         id: { [Op.ne]: id },
       },
-      include: [{ model: Pelicula, required: true }],
+      include: [
+        {
+          model: Pelicula,
+          required: true,
+        },
+      ],
       transaction: t,
     });
 
+    // Verificar superposición de horarios.
     for (const otra of otrasFunciones) {
       const otraPelicula = otra.get("Pelicula") as Pelicula;
 
@@ -259,10 +288,11 @@ export async function actualizarHorarioFuncion(
         inicioExistente +
         otraPelicula.duracionMinutos * 60_000;
 
-      if (
+      const haySuperposicion =
         inicioNuevo < finExistente &&
-        finNuevo > inicioExistente
-      ) {
+        finNuevo > inicioExistente;
+
+      if (haySuperposicion) {
         throw new AppError(
           "La sala ya tiene una función en ese horario",
           409
@@ -270,8 +300,12 @@ export async function actualizarHorarioFuncion(
       }
     }
 
+    // Actualizar únicamente fecha y hora.
     await funcion.update(
-      { fecha: nuevaFecha, hora: nuevaHora },
+      {
+        fecha: nuevaFecha,
+        hora: nuevaHora,
+      },
       { transaction: t }
     );
 
@@ -279,13 +313,71 @@ export async function actualizarHorarioFuncion(
   });
 }
 
+// PATCH /api/funciones/:id/cancelar
+export async function cancelarFuncion(id: number) {
+  return sequelize.transaction(async (t) => {
+    const funcionActual = await Funcion.findByPk(id, {
+      transaction: t,
+    });
 
+    if (!funcionActual) {
+      throw new AppError("Función no encontrada", 404);
+    }
 
-//Qué hace: cuando se crea una función, busca todas las butacas físicas de su sala y crea una fila de FuncionButaca por cada una, 
-// todas en estado "disponible".
+    // Bloqueamos primero la sala.
+    const sala = await Sala.findByPk(
+      funcionActual.salaId,
+      {
+        transaction: t,
+        lock: t.LOCK.UPDATE,
+      }
+    );
 
-//Este es el punto clave de su modelo de datos: una butaca física (A1 de la Sala 1) existe una sola vez, 
-// pero su estado se guarda por función. Así la A1 puede estar libre a las 18:00 y vendida a las 21:00. 
-// Y como FuncionButaca tiene un índice único sobre (funcion_id, butaca_id), la base de datos misma impide duplicar un lugar.
+    if (!sala) {
+      throw new AppError("Sala no encontrada", 404);
+    }
 
-//as const le dice a TypeScript que "disponible" es ese valor exacto y no un string cualquiera, que es lo que espera el modelo
+    // Bloqueamos la función.
+    const funcion = await Funcion.findByPk(id, {
+      transaction: t,
+      lock: t.LOCK.UPDATE,
+    });
+
+    if (!funcion) {
+      throw new AppError("Función no encontrada", 404);
+    }
+
+    if (funcion.estado === "cancelada") {
+      throw new AppError(
+        "La función ya está cancelada",
+        409
+      );
+    }
+
+    // Verificar que no tenga reservas ni ventas.
+    const butacasOcupadas = await FuncionButaca.count({
+      where: {
+        funcionId: id,
+        estado: {
+          [Op.in]: ["reservada", "vendida"],
+        },
+      },
+      transaction: t,
+    });
+
+    if (butacasOcupadas > 0) {
+      throw new AppError(
+        "No se puede cancelar una función con butacas reservadas o vendidas",
+        409
+      );
+    }
+
+    // Cancelación lógica: no eliminamos ningún registro.
+    await funcion.update(
+      { estado: "cancelada" },
+      { transaction: t }
+    );
+
+    return funcion;
+  });
+}
