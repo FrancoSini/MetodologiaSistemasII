@@ -1,8 +1,9 @@
 import { Request, Response, NextFunction } from "express";
 import { Funcion, Pelicula, Sala } from "../models";
-import { generarButacasDeFuncion } from "../services/funcionService";
+import { generarButacasDeFuncion, obtenerButacasDeFuncion } from "../services/funcionService";
 import sequelize from "../config/database";
 import { obtenerId } from "../utils/params";
+
 
 // Obtener todas las funciones (incluyendo los datos de su película y sala asociada)
 export async function getFunciones(req: Request, res: Response, next: NextFunction) {
@@ -54,4 +55,20 @@ export async function createFuncion(req: Request, res: Response, next: NextFunct
         await t.rollback();
         next(error);
     }
+}
+
+export async function getButacasDeFuncion(
+  req: Request,
+  res: Response,
+  next: NextFunction
+) {
+  try {
+    const funcionId = obtenerId(req.params.id);
+
+    const butacas = await obtenerButacasDeFuncion(funcionId);
+
+    return res.status(200).json(butacas);
+  } catch (error) {
+    next(error);
+  }
 }
