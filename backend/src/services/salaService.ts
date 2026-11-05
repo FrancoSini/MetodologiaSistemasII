@@ -1,5 +1,5 @@
 import sequelize from "../config/database";
-import { Butaca, Sala } from "../models";
+import { Butaca,Funcion, Sala } from "../models";
 import { AppError } from "../utils/AppError";
 
 // Datos que necesita el servicio para crear una sala (ya validados en su forma por el middleware).
@@ -62,5 +62,53 @@ export async function crearSala({ nombre, filas, butacasPorFila }: CrearSalaDTO)
     );
 
     return sala;
+  });
+}
+
+export async function actualizarSala(
+  id: number,
+  nombre: string
+) {
+  if (typeof nombre !== "string" || nombre.trim() === "") {
+    throw new AppError("El nombre de la sala es inválido", 400);
+  }
+
+  const sala = await Sala.findByPk(id);
+
+  if (!sala) {
+    throw new AppError("Sala no encontrada", 404);
+  }
+
+  await sala.update({
+    nombre: nombre.trim(),
+  });
+
+  return sala;
+}
+
+export async function eliminarSala(id: number) {
+  return sequelize.transaction(async (t) => {
+    const sala = await Sala.findByPk(id, {
+      transaction: t,
+      lock: t.LOCK.UPDATE,
+    });
+
+    if (!sala) {
+      throw new AppError("Sala no encontrada", 404);
+    }
+
+    const cantidadFunciones = await Funcion.count({
+      where: { salaId: id },
+      transaction: t,
+    });
+
+    if (cantidadFunciones > 0) {
+      throw new AppError(
+        "No se puede eliminar una sala que tiene funciones asociadas",
+        409
+      );
+    }
+
+    await sala.destroy({ transaction: t });
   });
 }

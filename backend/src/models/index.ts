@@ -9,6 +9,7 @@ import Producto from "./Producto";
 import Compra from "./Compra";
 import CompraProducto from "./Compraproducto";
 import Entrada from "./Entrada";
+import ReservaButaca from "./ReservaButaca";
 
 // ---- Usuario <-> Compra ----
 Usuario.hasMany(Compra, { foreignKey: "usuarioId" });
@@ -47,6 +48,29 @@ Entrada.belongsTo(Compra, { foreignKey: "compraId" });
 FuncionButaca.hasOne(Entrada, { foreignKey: "funcionButacaId" });
 Entrada.belongsTo(FuncionButaca, { foreignKey: "funcionButacaId" });
 
+// ---- Compra <-> ReservaButaca ----
+Compra.hasMany(ReservaButaca, {
+  foreignKey: "compraId",
+  onDelete: "RESTRICT",
+});
+
+ReservaButaca.belongsTo(Compra, {
+  foreignKey: "compraId",
+  onDelete: "RESTRICT",
+});
+
+// ---- FuncionButaca <-> ReservaButaca ----
+FuncionButaca.hasMany(ReservaButaca, {
+  foreignKey: "funcionButacaId",
+  onDelete: "RESTRICT",
+});
+
+ReservaButaca.belongsTo(FuncionButaca, {
+  foreignKey: "funcionButacaId",
+  onDelete: "RESTRICT",
+});
+
+
 export {
   sequelize,
   Usuario,
@@ -59,4 +83,5 @@ export {
   Compra,
   CompraProducto,
   Entrada,
+  ReservaButaca,
 };

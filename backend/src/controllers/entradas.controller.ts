@@ -1,6 +1,7 @@
 import { Request, Response } from "express";
 import Entrada from "../models/Entrada";
 import { AppError } from "../utils/AppError";
+import { emitirEntrada } from "../services/entradaService";
 
 // GET /api/entradas
 export const obtenerEntradas = async (req: Request, res: Response) => {
@@ -26,33 +27,18 @@ export const obtenerEntradaPorId = async (req: Request, res: Response) => {
 };
 
 // POST /api/entradas
-export const crearEntrada = async (req: Request, res: Response) => {
-  const { compraId, funcionButacaId, codigo } = req.body;
 
-  if (
-    !Number.isInteger(compraId) ||
-    compraId <= 0 ||
-    !Number.isInteger(funcionButacaId) ||
-    funcionButacaId <= 0 ||
-    typeof codigo !== "string" ||
-    codigo.trim() === ""
-  ) {
-    throw new AppError("Los datos de la entrada son inválidos", 400);
-  }
+export const crearEntrada = async (
+  req: Request,
+  res: Response
+) => {
+  const { compraId, funcionButacaId, codigo } = req.body ?? {};
 
-  try {
-    const entrada = await Entrada.create({
-      compraId,
-      funcionButacaId,
-      codigo: codigo.trim(),
-    });
+  const entrada = await emitirEntrada({
+    compraId,
+    funcionButacaId,
+    codigo,
+  });
 
-    return res.status(201).json(entrada);
-  } catch (error: any) {
-    if (error.name === "SequelizeForeignKeyConstraintError") {
-      throw new AppError("La compra o la butaca indicada no existe", 400);
-    }
-
-    throw error;
-  }
+  return res.status(201).json(entrada);
 };

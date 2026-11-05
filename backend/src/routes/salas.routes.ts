@@ -8,5 +8,6 @@ const router = Router();
 router.get("/", asyncHandler(salaController.obtenerSalas));
 router.get("/:id", asyncHandler(salaController.obtenerSalaPorId));
 router.post("/", validarCrearSala, asyncHandler(salaController.crearSala));
-
+router.put("/:id", asyncHandler(salaController.actualizarSala));
+router.delete("/:id", asyncHandler(salaController.eliminarSala));
 export default router;

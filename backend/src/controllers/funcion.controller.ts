@@ -1,8 +1,15 @@
 import { Request, Response, NextFunction } from "express";
 import { Funcion, Pelicula, Sala } from "../models";
-import { generarButacasDeFuncion } from "../services/funcionService";
-import sequelize from "../config/database";
+import {
+  crearFuncionConValidacion,
+  obtenerButacasDeFuncion,
+  actualizarHorarioFuncion,
+  cancelarFuncion,
+} from "../services/funcionService";
 import { obtenerId } from "../utils/params";
+import { AppError } from "../utils/AppError";
+import { liberarReservasVencidas } from "../services/reservaButacaService";
+
 
 // Obtener todas las funciones (incluyendo los datos de su película y sala asociada)
 export async function getFunciones(req: Request, res: Response, next: NextFunction) {
@@ -34,24 +41,114 @@ export async function getFunciones(req: Request, res: Response, next: NextFuncti
 }
 
 // Crear una función y generar automáticamente sus butacas para la venta (transaccional)
-export async function createFuncion(req: Request, res: Response, next: NextFunction) {
-    const t = await sequelize.transaction();
-    try {
-        const { peliculaId, salaId, fecha, hora } = req.body;
 
-        // 1. Creamos el registro de la función
-        const nuevaFuncion = await Funcion.create(
-        { peliculaId, salaId, fecha, hora },
-        { transaction: t }
-        );
+export async function createFuncion(
+  req: Request,
+  res: Response,
+  next: NextFunction
+) {
+  try {
+    const { peliculaId, salaId, fecha, hora } = req.body ?? {};
 
-        // 2. Generamos todas las butacas asociadas a esta función con estado "disponible"[cite: 330]
-        await generarButacasDeFuncion(nuevaFuncion, t);
+    const nuevaFuncion = await crearFuncionConValidacion({
+      peliculaId,
+      salaId,
+      fecha,
+      hora,
+    });
 
-        await t.commit();
-        return res.status(201).json(nuevaFuncion);
-    } catch (error) {
-        await t.rollback();
-        next(error);
+    return res.status(201).json(nuevaFuncion);
+  } catch (error) {
+    next(error);
+  }
+}
+
+
+
+export async function getButacasDeFuncion(
+  req: Request,
+  res: Response,
+  next: NextFunction
+) {
+  try {
+    const funcionId = obtenerId(req.params.id);
+
+    // Primero procesamos reservas que ya vencieron.
+    await liberarReservasVencidas(funcionId);
+
+    // Después consultamos la disponibilidad actualizada.
+    const butacas = await obtenerButacasDeFuncion(funcionId);
+
+    return res.status(200).json(butacas);
+  } catch (error) {
+    next(error);
+  }
+}
+
+
+export async function updateFuncion(
+  req: Request,
+  res: Response,
+  next: NextFunction
+) {
+  try {
+    const id = obtenerId(req.params.id);
+    const datos = req.body;
+
+    if (
+      !datos ||
+      typeof datos !== "object" ||
+      Array.isArray(datos)
+    ) {
+      throw new AppError("Datos inválidos", 400);
     }
+
+    const campos = Object.keys(datos);
+
+    if (
+      campos.length === 0 ||
+      campos.some(
+        (campo) => !["fecha", "hora"].includes(campo)
+      )
+    ) {
+      throw new AppError(
+        "Solo se permite modificar fecha y hora",
+        400
+      );
+    }
+
+    const { fecha, hora } = datos;
+
+    if (
+      (fecha !== undefined && typeof fecha !== "string") ||
+      (hora !== undefined && typeof hora !== "string")
+    ) {
+      throw new AppError("Fecha u hora inválida", 400);
+    }
+
+    const funcion = await actualizarHorarioFuncion(id, {
+      fecha,
+      hora,
+    });
+
+    return res.status(200).json(funcion);
+  } catch (error) {
+    next(error);
+  }
+}
+
+export async function cancelFuncion(
+  req: Request,
+  res: Response,
+  next: NextFunction
+) {
+  try {
+    const id = obtenerId(req.params.id);
+
+    const funcion = await cancelarFuncion(id);
+
+    return res.status(200).json(funcion);
+  } catch (error) {
+    next(error);
+  }
 }
