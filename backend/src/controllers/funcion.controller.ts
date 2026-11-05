@@ -8,6 +8,7 @@ import {
 } from "../services/funcionService";
 import { obtenerId } from "../utils/params";
 import { AppError } from "../utils/AppError";
+import { liberarReservasVencidas } from "../services/reservaButacaService";
 
 
 // Obtener todas las funciones (incluyendo los datos de su película y sala asociada)
@@ -63,6 +64,7 @@ export async function createFuncion(
 }
 
 
+
 export async function getButacasDeFuncion(
   req: Request,
   res: Response,
@@ -71,6 +73,10 @@ export async function getButacasDeFuncion(
   try {
     const funcionId = obtenerId(req.params.id);
 
+    // Primero procesamos reservas que ya vencieron.
+    await liberarReservasVencidas(funcionId);
+
+    // Después consultamos la disponibilidad actualizada.
     const butacas = await obtenerButacasDeFuncion(funcionId);
 
     return res.status(200).json(butacas);
@@ -78,6 +84,7 @@ export async function getButacasDeFuncion(
     next(error);
   }
 }
+
 
 export async function updateFuncion(
   req: Request,

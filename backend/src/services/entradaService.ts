@@ -5,6 +5,7 @@ import {
   Entrada,
   Funcion,
   FuncionButaca,
+  ReservaButaca,
   Sala,
 } from "../models";
 import { AppError } from "../utils/AppError";
@@ -18,7 +19,7 @@ interface EmitirEntradaDTO {
 export async function emitirEntrada(datos: EmitirEntradaDTO) {
   const { compraId, funcionButacaId, codigo } = datos;
 
-  // Validar los datos recibidos.
+  // 1. Validar los datos de entrada.
   if (
     !Number.isInteger(compraId) ||
     compraId <= 0 ||
@@ -28,13 +29,13 @@ export async function emitirEntrada(datos: EmitirEntradaDTO) {
     codigo.trim().length === 0
   ) {
     throw new AppError(
-      "Los datos de la entrada son inválidos",
+      "Los datos de la entrada son invalidos",
       400
     );
   }
 
   return sequelize.transaction(async (t) => {
-    // Comprobar que la compra exista.
+    // 2. Verificar la compra.
     const compra = await Compra.findByPk(compraId, {
       transaction: t,
     });
@@ -43,7 +44,6 @@ export async function emitirEntrada(datos: EmitirEntradaDTO) {
       throw new AppError("Compra no encontrada", 404);
     }
 
-    // Solo emitir entradas de compras confirmadas.
     if (compra.estado !== "confirmada") {
       throw new AppError(
         "La compra debe estar confirmada para emitir entradas",
@@ -51,7 +51,7 @@ export async function emitirEntrada(datos: EmitirEntradaDTO) {
       );
     }
 
-    // Identificar la butaca de la función.
+    // 3. Identificar la butaca y su funcion.
     const butacaInicial = await FuncionButaca.findByPk(
       funcionButacaId,
       { transaction: t }
@@ -59,25 +59,22 @@ export async function emitirEntrada(datos: EmitirEntradaDTO) {
 
     if (!butacaInicial) {
       throw new AppError(
-        "Butaca de función no encontrada",
+        "Butaca de funcion no encontrada",
         404
       );
     }
 
-    // Identificar la función correspondiente.
     const funcionInicial = await Funcion.findByPk(
       butacaInicial.funcionId,
       { transaction: t }
     );
 
     if (!funcionInicial) {
-      throw new AppError(
-        "Función no encontrada",
-        404
-      );
+      throw new AppError("Funcion no encontrada", 404);
     }
 
-    // Bloquear la sala.
+    // 4. Bloquear sala, funcion y butaca
+    // siguiendo el mismo orden que los otros servicios.
     const sala = await Sala.findByPk(
       funcionInicial.salaId,
       {
@@ -87,13 +84,9 @@ export async function emitirEntrada(datos: EmitirEntradaDTO) {
     );
 
     if (!sala) {
-      throw new AppError(
-        "Sala no encontrada",
-        404
-      );
+      throw new AppError("Sala no encontrada", 404);
     }
 
-    // Bloquear la función.
     const funcion = await Funcion.findByPk(
       funcionInicial.id,
       {
@@ -103,22 +96,17 @@ export async function emitirEntrada(datos: EmitirEntradaDTO) {
     );
 
     if (!funcion) {
-      throw new AppError(
-        "Función no encontrada",
-        404
-      );
+      throw new AppError("Funcion no encontrada", 404);
     }
 
-    // Impedir ventas de funciones canceladas.
     if (funcion.estado !== "programada") {
       throw new AppError(
-        "No se pueden emitir entradas para una función cancelada",
+        "No se pueden emitir entradas para una funcion cancelada",
         409
       );
     }
 
-    // Bloquear la butaca para evitar ventas duplicadas.
-    const funcionButaca = await FuncionButaca.findByPk(
+    const butaca = await FuncionButaca.findByPk(
       funcionButacaId,
       {
         transaction: t,
@@ -126,29 +114,67 @@ export async function emitirEntrada(datos: EmitirEntradaDTO) {
       }
     );
 
-    if (!funcionButaca) {
+    if (!butaca || butaca.funcionId !== funcion.id) {
       throw new AppError(
-        "Butaca de función no encontrada",
+        "Butaca de funcion no encontrada",
         404
       );
     }
 
-    if (funcionButaca.funcionId !== funcion.id) {
+    // 5. Verificar si existe una reserva activa.
+    const reserva = await ReservaButaca.findOne({
+      where: {
+        funcionButacaId,
+        estado: "activa",
+      },
+      transaction: t,
+      lock: t.LOCK.UPDATE,
+    });
+
+    // 6. Controlar el estado de la butaca.
+    if (butaca.estado === "vendida") {
       throw new AppError(
-        "La butaca no corresponde a la función",
+        "La butaca ya esta vendida",
         409
       );
     }
 
-    // No permitir una segunda venta.
-    if (funcionButaca.estado !== "disponible") {
-      throw new AppError(
-        "La butaca no está disponible",
-        409
-      );
+    if (reserva) {
+      // La reserva debe pertenecer a la misma compra.
+      if (reserva.compraId !== compraId) {
+        throw new AppError(
+          "La butaca esta reservada por otra compra",
+          409
+        );
+      }
+
+      // No se permite consumir una reserva vencida.
+      if (reserva.venceEn.getTime() <= Date.now()) {
+        throw new AppError(
+          "La reserva ha vencido",
+          409
+        );
+      }
+
+      // Una reserva activa exige una butaca reservada.
+      if (butaca.estado !== "reservada") {
+        throw new AppError(
+          "El estado de la reserva y la butaca no coincide",
+          409
+        );
+      }
+    } else {
+      // Si no existe reserva activa, solo se admite
+      // la venta directa de una butaca disponible.
+      if (butaca.estado !== "disponible") {
+        throw new AppError(
+          "La butaca no esta disponible",
+          409
+        );
+      }
     }
 
-    // Crear la entrada.
+    // 7. Crear la entrada.
     const entrada = await Entrada.create(
       {
         compraId,
@@ -158,14 +184,18 @@ export async function emitirEntrada(datos: EmitirEntradaDTO) {
       { transaction: t }
     );
 
-    // Cambiar el estado de la butaca a vendida.
-    await funcionButaca.update(
-      {
-        estado: "vendida",
-      },
-      {
-        transaction: t,
-      }
+    // 8. Marcar la reserva como consumida, si existe.
+    if (reserva) {
+      await reserva.update(
+        { estado: "consumida" },
+        { transaction: t }
+      );
+    }
+
+    // 9. Marcar la butaca como vendida.
+    await butaca.update(
+      { estado: "vendida" },
+      { transaction: t }
     );
 
     return entrada;
