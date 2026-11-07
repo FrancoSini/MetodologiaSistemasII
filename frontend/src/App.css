@@ -215,3 +215,139 @@ body {
     grid-template-columns: 1fr;
   }
 }
+
+/* BOTÓN PARA VER BUTACAS */
+
+.btn-butacas {
+  display: block;
+  width: 100%;
+  margin-top: 12px;
+  padding: 10px;
+  background-color: #172554;
+  color: white;
+  border: none;
+  border-radius: 8px;
+  font-weight: bold;
+  cursor: pointer;
+}
+
+.btn-butacas:hover {
+  background-color: #1e40af;
+}
+
+/* CONTENEDOR DE BUTACAS */
+
+.butacas-container {
+  margin-top: 16px;
+  padding-top: 14px;
+  border-top: 1px solid #cbd5e1;
+}
+
+.butacas-container h4 {
+  margin-bottom: 10px;
+}
+
+/* MAPA DE ASIENTOS */
+
+.mapa-butacas {
+  overflow-x: auto;
+  padding: 15px 5px;
+  text-align: center;
+}
+
+.pantalla-cine {
+  background-color: #cbd5e1;
+  color: #334155;
+  padding: 9px;
+  border-radius: 6px;
+  font-size: 11px;
+  font-weight: bold;
+  margin-bottom: 20px;
+  letter-spacing: 2px;
+}
+
+.fila-butacas {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  margin-bottom: 8px;
+  min-width: max-content;
+}
+
+.letra-fila {
+  width: 20px;
+  text-align: center;
+  font-weight: bold;
+  font-size: 12px;
+}
+
+/* ESTADOS DE BUTACAS */
+
+.butaca {
+  width: 27px;
+  height: 27px;
+  padding: 0;
+  border: none;
+  border-radius: 5px 5px 3px 3px;
+  color: white;
+  font-size: 11px;
+  font-weight: bold;
+  cursor: pointer;
+}
+
+.butaca.disponible {
+  background-color: #16a34a;
+}
+
+.butaca.disponible:hover {
+  background-color: #15803d;
+}
+
+.butaca.seleccionada {
+  background-color: #2563eb;
+}
+
+.butaca.ocupada {
+  background-color: #dc2626;
+  cursor: not-allowed;
+  opacity: 0.7;
+}
+
+.butaca:focus-visible {
+  outline: 3px solid #f59e0b;
+  outline-offset: 2px;
+}
+
+/* LEYENDA */
+
+.leyenda-butacas {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  justify-content: center;
+  margin-top: 12px;
+  font-size: 11px;
+}
+
+/* RESUMEN DE SELECCIÓN */
+
+.resumen-butacas {
+  margin-top: 16px;
+  padding: 12px;
+  background-color: #dbeafe;
+  border-radius: 8px;
+  font-size: 13px;
+}
+
+.resumen-butacas p {
+  margin: 8px 0;
+  font-weight: bold;
+  color: #1e40af;
+}
+
+.resumen-butacas small {
+  display: block;
+  margin-top: 8px;
+  color: #475569;
+}

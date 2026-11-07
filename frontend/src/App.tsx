@@ -27,6 +27,13 @@ interface Funcion {
   };
 }
 
+interface Butaca {
+  id: number;
+  fila: string;
+  numero: number;
+  estado: string;
+}
+
 const API_URL = "http://localhost:3001/api";
 
 function App() {
@@ -40,7 +47,14 @@ function App() {
   const [cargandoFunciones, setCargandoFunciones] = useState(false);
   const [errorFunciones, setErrorFunciones] = useState("");
 
-  // Obtener todas las películas desde el backend.
+  const [funcionSeleccionada, setFuncionSeleccionada] =
+    useState<number | null>(null);
+  const [butacas, setButacas] = useState<Butaca[]>([]);
+  const [butacasSeleccionadas, setButacasSeleccionadas] =
+    useState<number[]>([]);
+  const [cargandoButacas, setCargandoButacas] = useState(false);
+  const [errorButacas, setErrorButacas] = useState("");
+
   useEffect(() => {
     async function cargarPeliculas() {
       try {
@@ -56,7 +70,7 @@ function App() {
         setError(
           error instanceof Error
             ? error.message
-            : "Error desconocido al cargar películas"
+            : "Error desconocido"
         );
       } finally {
         setCargando(false);
@@ -66,47 +80,139 @@ function App() {
     cargarPeliculas();
   }, []);
 
-  // Consultar funciones de la película seleccionada.
-  async function verFunciones(peliculaId: number) {
-    // Si ya está seleccionada, ocultamos las funciones.
-    if (peliculaSeleccionada === peliculaId) {
-      setPeliculaSeleccionada(null);
-      return;
-    }
+  // Mostrar u ocultar las funciones de una película.
+  function verFunciones(peliculaId: number) {
+    setPeliculaSeleccionada(
+      peliculaSeleccionada === peliculaId ? null : peliculaId
+    );
 
-    setPeliculaSeleccionada(peliculaId);
-    setCargandoFunciones(true);
-    setErrorFunciones("");
-    setFunciones([]);
-
-    try {
-      const respuesta = await fetch(`${API_URL}/funciones`);
-
-      if (!respuesta.ok) {
-        throw new Error("No se pudieron cargar las funciones");
-      }
-
-      const datos: Funcion[] = await respuesta.json();
-
-      // Mostrar únicamente funciones programadas
-      // de la película seleccionada.
-      const funcionesDePelicula = datos.filter(
-        (funcion) =>
-          funcion.peliculaId === peliculaId &&
-          funcion.estado === "programada"
-      );
-
-      setFunciones(funcionesDePelicula);
-    } catch (error) {
-      setErrorFunciones(
-        error instanceof Error
-          ? error.message
-          : "Error desconocido al cargar funciones"
-      );
-    } finally {
-      setCargandoFunciones(false);
-    }
+    setFuncionSeleccionada(null);
+    setButacas([]);
+    setButacasSeleccionadas([]);
+    setErrorButacas("");
   }
+
+  // Cargar las funciones cuando cambia la película seleccionada.
+  useEffect(() => {
+    if (peliculaSeleccionada === null) return;
+
+    const controller = new AbortController();
+    const peliculaId = peliculaSeleccionada;
+
+    async function cargarFunciones() {
+      setCargandoFunciones(true);
+      setErrorFunciones("");
+      setFunciones([]);
+
+      try {
+        const respuesta = await fetch(`${API_URL}/funciones`, {
+          signal: controller.signal,
+        });
+
+        if (!respuesta.ok) {
+          throw new Error("No se pudieron cargar las funciones");
+        }
+
+        const datos: Funcion[] = await respuesta.json();
+
+        setFunciones(
+          datos.filter(
+            (funcion) =>
+              funcion.peliculaId === peliculaId &&
+              funcion.estado === "programada"
+          )
+        );
+      } catch (error) {
+        if (controller.signal.aborted) return;
+
+        setErrorFunciones(
+          error instanceof Error
+            ? error.message
+            : "Error al consultar funciones"
+        );
+      } finally {
+        if (!controller.signal.aborted) {
+          setCargandoFunciones(false);
+        }
+      }
+    }
+
+    cargarFunciones();
+
+    return () => controller.abort();
+  }, [peliculaSeleccionada]);
+
+  // Mostrar u ocultar las butacas de una función.
+  function verButacas(funcionId: number) {
+    setFuncionSeleccionada(
+      funcionSeleccionada === funcionId ? null : funcionId
+    );
+
+    setButacas([]);
+    setButacasSeleccionadas([]);
+    setErrorButacas("");
+  }
+
+  // Consultar las butacas reales de la función.
+  useEffect(() => {
+    if (funcionSeleccionada === null) return;
+
+    const controller = new AbortController();
+
+    async function cargarButacas() {
+      setCargandoButacas(true);
+      setErrorButacas("");
+      setButacas([]);
+
+      try {
+        const respuesta = await fetch(
+          `${API_URL}/funciones/${funcionSeleccionada}/butacas`,
+          { signal: controller.signal }
+        );
+
+        if (!respuesta.ok) {
+          throw new Error("No se pudieron cargar las butacas");
+        }
+
+        const datos: Butaca[] = await respuesta.json();
+        setButacas(datos);
+      } catch (error) {
+        if (controller.signal.aborted) return;
+
+        setErrorButacas(
+          error instanceof Error
+            ? error.message
+            : "Error al consultar butacas"
+        );
+      } finally {
+        if (!controller.signal.aborted) {
+          setCargandoButacas(false);
+        }
+      }
+    }
+
+    cargarButacas();
+
+    return () => controller.abort();
+  }, [funcionSeleccionada]);
+
+  // Selección visual. Todavía no reserva en PostgreSQL.
+  function seleccionarButaca(butaca: Butaca) {
+    if (butaca.estado !== "disponible") return;
+
+    setButacasSeleccionadas((anteriores) =>
+      anteriores.includes(butaca.id)
+        ? anteriores.filter((id) => id !== butaca.id)
+        : [...anteriores, butaca.id]
+    );
+  }
+
+  // Agrupar las butacas por fila: A, B, C, etc.
+  const filas = [...new Set(butacas.map((butaca) => butaca.fila))].sort();
+
+  const disponibles = butacas.filter(
+    (butaca) => butaca.estado === "disponible"
+  ).length;
 
   return (
     <div className="app">
@@ -119,7 +225,6 @@ function App() {
         <h2>Cartelera de películas</h2>
 
         {cargando && <p>Cargando películas...</p>}
-
         {error && <p className="error">{error}</p>}
 
         {!cargando && !error && peliculas.length === 0 && (
@@ -129,7 +234,6 @@ function App() {
         <div className="peliculas-grid">
           {peliculas.map((pelicula) => (
             <article className="pelicula-card" key={pelicula.id}>
-              {/* Imagen de la película */}
               {pelicula.posterUrl ? (
                 <img
                   src={pelicula.posterUrl}
@@ -156,9 +260,7 @@ function App() {
                   {pelicula.clasificacion}
                 </p>
 
-                <p className="sinopsis">
-                  {pelicula.sinopsis}
-                </p>
+                <p className="sinopsis">{pelicula.sinopsis}</p>
 
                 <span
                   className={
@@ -172,7 +274,6 @@ function App() {
                     : "En cartelera"}
                 </span>
 
-                {/* Botón para mostrar las funciones */}
                 <button
                   type="button"
                   className="btn-funciones"
@@ -183,7 +284,6 @@ function App() {
                     : "Ver funciones"}
                 </button>
 
-                {/* Funciones de la película */}
                 {peliculaSeleccionada === pelicula.id && (
                   <div className="funciones-container">
                     <h4>Funciones disponibles</h4>
@@ -231,6 +331,146 @@ function App() {
                           <span className="funcion-estado">
                             Programada
                           </span>
+
+                          <button
+                            type="button"
+                            className="btn-butacas"
+                            onClick={() => verButacas(funcion.id)}
+                          >
+                            {funcionSeleccionada === funcion.id
+                              ? "Ocultar butacas"
+                              : "Ver butacas"}
+                          </button>
+
+                          {funcionSeleccionada === funcion.id && (
+                            <div className="butacas-container">
+                              <h4>Selección de butacas</h4>
+
+                              {cargandoButacas && (
+                                <p>Cargando butacas...</p>
+                              )}
+
+                              {errorButacas && (
+                                <p className="error">
+                                  {errorButacas}
+                                </p>
+                              )}
+
+                              {!cargandoButacas &&
+                                !errorButacas && (
+                                  <>
+                                    <p>
+                                      Disponibles:{" "}
+                                      <strong>
+                                        {disponibles} de {butacas.length}
+                                      </strong>
+                                    </p>
+
+                                    <div className="mapa-butacas">
+                                      <div className="pantalla-cine">
+                                        PANTALLA
+                                      </div>
+
+                                      {filas.map((fila) => (
+                                        <div
+                                          className="fila-butacas"
+                                          key={fila}
+                                        >
+                                          <span className="letra-fila">
+                                            {fila}
+                                          </span>
+
+                                          {butacas
+                                            .filter(
+                                              (butaca) =>
+                                                butaca.fila === fila
+                                            )
+                                            .sort(
+                                              (a, b) =>
+                                                a.numero - b.numero
+                                            )
+                                            .map((butaca) => {
+                                              const seleccionada =
+                                                butacasSeleccionadas.includes(
+                                                  butaca.id
+                                                );
+
+                                              return (
+                                                <button
+                                                  key={butaca.id}
+                                                  type="button"
+                                                  disabled={
+                                                    butaca.estado !==
+                                                    "disponible"
+                                                  }
+                                                  onClick={() =>
+                                                    seleccionarButaca(
+                                                      butaca
+                                                    )
+                                                  }
+                                                  className={`butaca ${
+                                                    seleccionada
+                                                      ? "seleccionada"
+                                                      : butaca.estado ===
+                                                          "disponible"
+                                                        ? "disponible"
+                                                        : "ocupada"
+                                                  }`}
+                                                  aria-pressed={
+                                                    seleccionada
+                                                  }
+                                                  aria-label={`Butaca ${butaca.fila}${butaca.numero}, ${
+                                                    seleccionada
+                                                      ? "seleccionada"
+                                                      : butaca.estado
+                                                  }`}
+                                                  title={`${butaca.fila}${butaca.numero}: ${butaca.estado}`}
+                                                >
+                                                  {butaca.numero}
+                                                </button>
+                                              );
+                                            })}
+                                        </div>
+                                      ))}
+                                    </div>
+
+                                    <div className="leyenda-butacas">
+                                      <span>🟢 Disponible</span>
+                                      <span>🔵 Seleccionada</span>
+                                      <span>🔴 No disponible</span>
+                                    </div>
+
+                                    <div className="resumen-butacas">
+                                      <strong>
+                                        Butacas seleccionadas:{" "}
+                                        {butacasSeleccionadas.length}
+                                      </strong>
+
+                                      {butacasSeleccionadas.length > 0 && (
+                                        <p>
+                                          {butacas
+                                            .filter((butaca) =>
+                                              butacasSeleccionadas.includes(
+                                                butaca.id
+                                              )
+                                            )
+                                            .map(
+                                              (butaca) =>
+                                                `${butaca.fila}${butaca.numero}`
+                                            )
+                                            .join(", ")}
+                                        </p>
+                                      )}
+
+                                      <small>
+                                        La selección es visual y todavía
+                                        no registra reservas.
+                                      </small>
+                                    </div>
+                                  </>
+                                )}
+                            </div>
+                          )}
                         </div>
                       ))}
                   </div>
