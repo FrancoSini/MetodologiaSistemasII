@@ -1,5 +1,5 @@
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import "./App.css";
 
 interface Pelicula {
@@ -34,7 +34,35 @@ interface Butaca {
   estado: string;
 }
 
+interface Compra {
+  id: number;
+  estado: string;
+}
+
 const API_URL = "http://localhost:3001/api";
+
+// Configuración únicamente para pruebas locales.
+const USUARIO_PRUEBA_ID = 1;
+const PRECIO_BUTACA = 5000;
+
+// Obtener el mensaje de error devuelto por el backend.
+async function verificarRespuesta(
+  respuesta: Response,
+  mensajePredeterminado: string
+) {
+  if (respuesta.ok) return;
+
+  let mensaje = mensajePredeterminado;
+
+  try {
+    const datos = await respuesta.json();
+    mensaje = datos?.error?.mensaje ?? datos?.mensaje ?? mensaje;
+  } catch {
+    // Usamos el mensaje predeterminado.
+  }
+
+  throw new Error(mensaje);
+}
 
 function App() {
   const [peliculas, setPeliculas] = useState<Pelicula[]>([]);
@@ -55,33 +83,50 @@ function App() {
   const [cargandoButacas, setCargandoButacas] = useState(false);
   const [errorButacas, setErrorButacas] = useState("");
 
+  const [reservando, setReservando] = useState(false);
+  const [mensajeReserva, setMensajeReserva] = useState("");
+  const [errorReserva, setErrorReserva] = useState("");
+
+  // Evita enviar dos reservas por doble clic.
+  const reservaEnCurso = useRef(false);
+
+  // Cargar películas.
   useEffect(() => {
+    const controller = new AbortController();
+
     async function cargarPeliculas() {
       try {
-        const respuesta = await fetch(`${API_URL}/peliculas`);
+        const respuesta = await fetch(`${API_URL}/peliculas`, {
+          signal: controller.signal,
+        });
 
-        if (!respuesta.ok) {
-          throw new Error("No se pudieron cargar las películas");
-        }
+        await verificarRespuesta(
+          respuesta,
+          "No se pudieron cargar las películas"
+        );
 
         const datos: Pelicula[] = await respuesta.json();
         setPeliculas(datos);
       } catch (error) {
+        if (controller.signal.aborted) return;
+
         setError(
-          error instanceof Error
-            ? error.message
-            : "Error desconocido"
+          error instanceof Error ? error.message : "Error desconocido"
         );
       } finally {
-        setCargando(false);
+        if (!controller.signal.aborted) setCargando(false);
       }
     }
 
     cargarPeliculas();
+
+    return () => controller.abort();
   }, []);
 
-  // Mostrar u ocultar las funciones de una película.
+  // Mostrar u ocultar funciones.
   function verFunciones(peliculaId: number) {
+    if (reservaEnCurso.current) return;
+
     setPeliculaSeleccionada(
       peliculaSeleccionada === peliculaId ? null : peliculaId
     );
@@ -89,10 +134,12 @@ function App() {
     setFuncionSeleccionada(null);
     setButacas([]);
     setButacasSeleccionadas([]);
+    setMensajeReserva("");
+    setErrorReserva("");
     setErrorButacas("");
   }
 
-  // Cargar las funciones cuando cambia la película seleccionada.
+  // Consultar las funciones programadas.
   useEffect(() => {
     if (peliculaSeleccionada === null) return;
 
@@ -109,9 +156,10 @@ function App() {
           signal: controller.signal,
         });
 
-        if (!respuesta.ok) {
-          throw new Error("No se pudieron cargar las funciones");
-        }
+        await verificarRespuesta(
+          respuesta,
+          "No se pudieron cargar las funciones"
+        );
 
         const datos: Funcion[] = await respuesta.json();
 
@@ -142,18 +190,22 @@ function App() {
     return () => controller.abort();
   }, [peliculaSeleccionada]);
 
-  // Mostrar u ocultar las butacas de una función.
+  // Mostrar u ocultar butacas.
   function verButacas(funcionId: number) {
+    if (reservaEnCurso.current) return;
+
     setFuncionSeleccionada(
       funcionSeleccionada === funcionId ? null : funcionId
     );
 
     setButacas([]);
     setButacasSeleccionadas([]);
+    setMensajeReserva("");
+    setErrorReserva("");
     setErrorButacas("");
   }
 
-  // Consultar las butacas reales de la función.
+  // Consultar butacas al elegir una función.
   useEffect(() => {
     if (funcionSeleccionada === null) return;
 
@@ -170,9 +222,10 @@ function App() {
           { signal: controller.signal }
         );
 
-        if (!respuesta.ok) {
-          throw new Error("No se pudieron cargar las butacas");
-        }
+        await verificarRespuesta(
+          respuesta,
+          "No se pudieron cargar las butacas"
+        );
 
         const datos: Butaca[] = await respuesta.json();
         setButacas(datos);
@@ -196,9 +249,39 @@ function App() {
     return () => controller.abort();
   }, [funcionSeleccionada]);
 
-  // Selección visual. Todavía no reserva en PostgreSQL.
+  // Volver a consultar la disponibilidad real.
+  async function actualizarButacas(funcionId: number) {
+    const respuesta = await fetch(
+      `${API_URL}/funciones/${funcionId}/butacas`
+    );
+
+    await verificarRespuesta(
+      respuesta,
+      "No se pudo actualizar la disponibilidad"
+    );
+
+    const datos: Butaca[] = await respuesta.json();
+
+    setButacas(datos);
+
+    // Quitar selecciones que dejaron de estar disponibles.
+    const idsDisponibles = new Set(
+      datos
+        .filter((butaca) => butaca.estado === "disponible")
+        .map((butaca) => butaca.id)
+    );
+
+    setButacasSeleccionadas((anteriores) =>
+      anteriores.filter((id) => idsDisponibles.has(id))
+    );
+  }
+
+  // Seleccionar o deseleccionar una butaca.
   function seleccionarButaca(butaca: Butaca) {
-    if (butaca.estado !== "disponible") return;
+    if (reservando || butaca.estado !== "disponible") return;
+
+    setMensajeReserva("");
+    setErrorReserva("");
 
     setButacasSeleccionadas((anteriores) =>
       anteriores.includes(butaca.id)
@@ -207,12 +290,158 @@ function App() {
     );
   }
 
-  // Agrupar las butacas por fila: A, B, C, etc.
+  // Reservar las butacas seleccionadas en PostgreSQL.
+  async function reservarButacas(funcionId: number) {
+    if (
+      reservaEnCurso.current ||
+      butacasSeleccionadas.length === 0 ||
+      funcionSeleccionada !== funcionId
+    ) {
+      return;
+    }
+
+    reservaEnCurso.current = true;
+    setReservando(true);
+    setMensajeReserva("");
+    setErrorReserva("");
+
+    const idsButacas = [...butacasSeleccionadas];
+    const reservasRealizadas: number[] = [];
+
+    let compraId: number | null = null;
+
+    try {
+      // 1. Crear una compra pendiente.
+      const respuestaCompra = await fetch(`${API_URL}/compras`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          usuarioId: USUARIO_PRUEBA_ID,
+          medioPago: "efectivo",
+          total: idsButacas.length * PRECIO_BUTACA,
+        }),
+      });
+
+      await verificarRespuesta(
+        respuestaCompra,
+        "No se pudo crear la compra"
+      );
+
+      const compra: Compra = await respuestaCompra.json();
+
+      if (compra.estado !== "pendiente") {
+        throw new Error("La compra creada no está pendiente");
+      }
+
+      compraId = compra.id;
+
+      // 2. Reservar cada butaca seleccionada.
+      for (const butacaId of idsButacas) {
+        const respuestaReserva = await fetch(
+          `${API_URL}/funciones/${funcionId}/butacas/${butacaId}/reservar`,
+          {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({ compraId }),
+          }
+        );
+
+        await verificarRespuesta(
+          respuestaReserva,
+          `No se pudo reservar la butaca ${butacaId}`
+        );
+
+        reservasRealizadas.push(butacaId);
+      }
+
+      // 3. Informar el resultado.
+      setButacasSeleccionadas([]);
+
+      setMensajeReserva(
+        `¡Reserva realizada! Compra pendiente #${compraId}. ` +
+          `${reservasRealizadas.length} butaca(s) reservada(s) ` +
+          "por 15 minutos. Todavía no se confirmó el pago."
+      );
+    } catch (error) {
+      const mensajeOriginal =
+        error instanceof Error
+          ? error.message
+          : "Ocurrió un error durante la reserva";
+
+      // Si se reservaron algunas butacas, intentar liberarlas.
+      const liberacionesFallidas: number[] = [];
+
+      if (compraId !== null) {
+        for (const butacaId of reservasRealizadas) {
+          try {
+            const respuestaLiberar = await fetch(
+              `${API_URL}/funciones/${funcionId}/butacas/${butacaId}/liberar`,
+              {
+                method: "PATCH",
+                headers: {
+                  "Content-Type": "application/json",
+                },
+                body: JSON.stringify({ compraId }),
+              }
+            );
+
+            await verificarRespuesta(
+              respuestaLiberar,
+              "No se pudo liberar una reserva"
+            );
+          } catch {
+            liberacionesFallidas.push(butacaId);
+          }
+        }
+      }
+
+      let mensaje = mensajeOriginal;
+
+      if (compraId !== null) {
+        mensaje += ` La compra pendiente #${compraId} quedó creada.`;
+
+        if (liberacionesFallidas.length > 0) {
+          mensaje +=
+            " No se pudieron liberar todas las butacas. " +
+            "Revisá la compra y la disponibilidad antes de reintentar.";
+        } else if (reservasRealizadas.length > 0) {
+          mensaje +=
+            " Se intentó liberar las butacas reservadas " +
+            "en esta operación.";
+        }
+      }
+
+      setErrorReserva(mensaje);
+    } finally {
+      // Refrescar disponibilidad tanto en éxito como en error.
+      try {
+        await actualizarButacas(funcionId);
+        setErrorButacas("");
+      } catch {
+        setErrorButacas(
+          "No se pudo actualizar la disponibilidad. " +
+            "Ocultá y volvé a abrir las butacas antes de reservar."
+        );
+      }
+
+      reservaEnCurso.current = false;
+      setReservando(false);
+    }
+  }
+
+  // Agrupar las butacas por fila.
   const filas = [...new Set(butacas.map((butaca) => butaca.fila))].sort();
 
   const disponibles = butacas.filter(
     (butaca) => butaca.estado === "disponible"
   ).length;
+
+  const totalSeleccionado =
+    butacasSeleccionadas.length * PRECIO_BUTACA;
 
   return (
     <div className="app">
@@ -277,6 +506,7 @@ function App() {
                 <button
                   type="button"
                   className="btn-funciones"
+                  disabled={reservando}
                   onClick={() => verFunciones(pelicula.id)}
                 >
                   {peliculaSeleccionada === pelicula.id
@@ -335,6 +565,7 @@ function App() {
                           <button
                             type="button"
                             className="btn-butacas"
+                            disabled={reservando}
                             onClick={() => verButacas(funcion.id)}
                           >
                             {funcionSeleccionada === funcion.id
@@ -357,7 +588,13 @@ function App() {
                               )}
 
                               {!cargandoButacas &&
+                                butacas.length === 0 &&
                                 !errorButacas && (
+                                  <p>No hay butacas disponibles para mostrar.</p>
+                                )}
+
+                              {!cargandoButacas &&
+                                butacas.length > 0 && (
                                   <>
                                     <p>
                                       Disponibles:{" "}
@@ -400,8 +637,9 @@ function App() {
                                                   key={butaca.id}
                                                   type="button"
                                                   disabled={
+                                                    reservando ||
                                                     butaca.estado !==
-                                                    "disponible"
+                                                      "disponible"
                                                   }
                                                   onClick={() =>
                                                     seleccionarButaca(
@@ -419,7 +657,7 @@ function App() {
                                                   aria-pressed={
                                                     seleccionada
                                                   }
-                                                  aria-label={`Butaca ${butaca.fila}${butaca.numero}, ${
+                                                  aria-label={`Butaca ${butaca.fila}${butaca.numero}: ${
                                                     seleccionada
                                                       ? "seleccionada"
                                                       : butaca.estado
@@ -462,11 +700,57 @@ function App() {
                                         </p>
                                       )}
 
+                                      <p>
+                                        <strong>
+                                          Total de prueba: $
+                                          {totalSeleccionado.toLocaleString(
+                                            "es-AR"
+                                          )}
+                                        </strong>
+                                      </p>
+
                                       <small>
-                                        La selección es visual y todavía
-                                        no registra reservas.
+                                        Precio ficticio. La reserva no
+                                        confirma el pago ni genera
+                                        entradas.
                                       </small>
+
+                                      <button
+                                        type="button"
+                                        className="btn-reservar"
+                                        disabled={
+                                          reservando ||
+                                          cargandoButacas ||
+                                          !!errorButacas ||
+                                          butacasSeleccionadas.length === 0
+                                        }
+                                        onClick={() =>
+                                          reservarButacas(funcion.id)
+                                        }
+                                      >
+                                        {reservando
+                                          ? "Procesando reserva..."
+                                          : "Reservar butacas seleccionadas"}
+                                      </button>
                                     </div>
+
+                                    {mensajeReserva && (
+                                      <div
+                                        className="mensaje-exito"
+                                        role="status"
+                                      >
+                                        {mensajeReserva}
+                                      </div>
+                                    )}
+
+                                    {errorReserva && (
+                                      <p
+                                        className="error"
+                                        role="alert"
+                                      >
+                                        {errorReserva}
+                                      </p>
+                                    )}
                                   </>
                                 )}
                             </div>
