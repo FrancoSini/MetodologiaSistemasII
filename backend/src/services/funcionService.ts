@@ -147,23 +147,23 @@ export async function crearFuncionConValidacion(
       );
 
       
-    const finExistente =
+      const finExistente =
       inicioExistente +
       peliculaExistente.duracionMinutos * 60_000;
 
-    const haySuperposicion = haySuperposicionHorarios(
+      const haySuperposicion = haySuperposicionHorarios(
       inicioNuevo,
       finNuevo,
       inicioExistente,
       finExistente
-    );
+      );
 
-    if (haySuperposicion) {
+      if (haySuperposicion) {
       throw new AppError(
         "La sala ya tiene una función en ese horario",
         409
       );
-    }
+      }
 
     }
 
@@ -291,23 +291,23 @@ export async function actualizarHorarioFuncion(
       );
 
       
-    const finExistente =
+      const finExistente =
       inicioExistente +
       otraPelicula.duracionMinutos * 60_000;
 
-    const haySuperposicion = haySuperposicionHorarios(
+      const haySuperposicion = haySuperposicionHorarios(
       inicioNuevo,
       finNuevo,
       inicioExistente,
       finExistente
-    );
+      );
 
-    if (haySuperposicion) {
+      if (haySuperposicion) {
       throw new AppError(
         "La sala ya tiene una función en ese horario",
         409
       );
-    }
+      }
 
     }
 
