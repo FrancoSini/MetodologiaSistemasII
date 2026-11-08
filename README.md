@@ -61,20 +61,22 @@ cd gestion-cine
 
 # Instalar dependencias del backend
 cd backend
-npm install
+npm ci
 
 # Instalar dependencias del frontend
 cd ../frontend
-npm install
+npm ci
 ```
 
 El repositorio incluye un archivo `.env.example` con las variables de entorno necesarias (puerto, conexión a PostgreSQL, secreto de JWT, origen permitido para CORS, etc.). Cada integrante debe copiarlo como `.env` y completar sus valores locales. El backend lee el `.env` de la carpeta desde la que se ejecuta, por lo que conviene dejarlo en `backend/`:
 
 ```bash
-cp .env.example backend/.env
+Copy-Item .env.example backend/.env  # PowerShell
 ```
 
-Los datos de conexión a la base (`DB_NAME`, `DB_USER`, `DB_PASSWORD`) tienen que coincidir con los de `docker-compose.yml`. Además hay que definir `JWT_SECRET`.
+Los datos de conexión a la base (`DB_NAME`, `DB_USER`, `DB_PASSWORD`) deben coincidir con los de `docker-compose.yml`. Además hay que definir un `JWT_SECRET` propio y no publicar archivos `.env`. Si PostgreSQL ocupa el puerto 5432 en la computadora, se puede cambiar solo el **puerto del host** a `5433:5432` y configurar `DB_PORT=5433` en `backend/.env`. No subir credenciales ni configuraciones locales sin coordinarlo con el equipo.
+
+> Requisito declarado por ambos `package.json`: **Node.js 24 o superior**. Se necesitan Docker Desktop, Git y npm.
 
 ---
 
@@ -83,7 +85,7 @@ Los datos de conexión a la base (`DB_NAME`, `DB_USER`, `DB_PASSWORD`) tienen qu
 **1. Base de datos (PostgreSQL con Docker):**
 
 ```bash
-docker-compose up -d db
+docker compose up -d db
 ```
 
 **2. Backend** (en `http://localhost:3001`):
@@ -99,32 +101,34 @@ Al iniciar, el backend se conecta a PostgreSQL y crea las tablas que falten (no 
 GET http://localhost:3001/api/salud
 ```
 
-**3. Frontend** (en otra terminal, en `http://localhost:5173`):
+**3. Frontend** (en otra terminal, normalmente en `http://localhost:5173`):
 
 ```bash
 cd frontend
 npm run dev
 ```
 
-> ⚠️ El frontend todavía muestra la plantilla inicial de Vite: las pantallas de la aplicación están pendientes.
+> Si el puerto 5173 está ocupado, Vite puede usar otro como `5174`. En ese caso, actualizar `CORS_ORIGIN` en `backend/.env` para que coincida con el origen real del navegador y reiniciar el backend. El frontend probado en `feature/frontend-cine` consulta `http://localhost:3001/api` de forma fija en `App.tsx`; no se configura todavía mediante `VITE_API_URL`.
+
+> **Estado por rama:** en `Read-Me` se documenta el estado integrado en esta rama; en `feature/frontend-cine` ya se desarrollaron cartelera, funciones, mapa y reserva de butacas, comprobante de compra pendiente y mejoras responsive. Estos cinco commits **aún no figuran incorporados** a `Read-Me` según la comparación de ramas del 08/11/2026. No confundir código desarrollado con código fusionado.
 
 ---
 
 ## 📌 Estado actual y pendientes conocidos
 
-**Estado actual:** el backend está en desarrollo y ya es funcional para la cartelera. El frontend tiene solo la plantilla inicial.
+**Estado actual:** proyecto en desarrollo con funcionalidades repartidas en ramas. `feature/frontend-cine` tiene un frontend conectado a la API con reserva de butacas y comprobante de compra pendiente; la integración con `Read-Me`/`dev` debe verificarse con Git antes de asumir que está disponible allí. El circuito de confirmación de compra/pago y emisión de entradas en el frontend sigue pendiente.
 
 | Módulo | Estado |
 | --- | --- |
-| Modelo de datos (10 modelos) | ✅ Implementado |
+| Modelo de datos | ✅ Implementado; incluye reservas de butacas en la rama de trabajo más reciente |
 | Películas, salas y funciones | ✅ Implementado (consulta y alta) |
 | Generación de butacas (por sala y por función) | ✅ Implementado |
 | Manejo central de errores | ✅ Implementado |
 | Productos, compras y entradas | 🟡 Controllers y rutas básicos; falta el flujo completo |
 | Autenticación (registro/login con JWT) | 🟡 Controller y middlewares hechos; las rutas todavía no están montadas |
 | Pagos simulados | ⏳ Pendiente (el medio de pago se registra en la compra, sin procesamiento) |
-| Selección de butacas sin doble venta | ⏳ Pendiente (el modelo ya lo respalda, falta la lógica de compra) |
-| Frontend | ⏳ Plantilla inicial de Vite |
+| Reservas de butacas | ✅ Backend con reservas de 15 minutos e índice único para reserva activa, probado en rama de trabajo |
+| Frontend | ✅ Cartelera, funciones, butacas, reservas y comprobante desarrollados en `feature/frontend-cine`; integración a otras ramas pendiente |
 
 **Pendientes conocidos:**
 
@@ -137,8 +141,8 @@ npm run dev
 * [ ] Montar las rutas de autenticación y aplicar los middlewares de token y rol.
 * [x] Implementar los módulos de películas, funciones y salas (consulta y alta).
 * [ ] Completar películas, salas y funciones con edición y baja (`PUT` / `DELETE`).
-* [ ] Exponer las butacas de cada función (`GET /api/funciones/:id/butacas`).
-* [ ] Implementar selección de butacas evitando doble venta para la misma función.
+* [x] Exponer las butacas de cada función (`GET /api/funciones/:id/butacas`) en la rama de trabajo del backend.
+* [x] Implementar selección visual y reserva con control de disponibilidad en `feature/frontend-cine` y servicios de backend (integración a otras ramas pendiente).
 * [ ] Implementar Candy Bar y flujo de compra completo (hoy el total llega desde el cliente y no se validan butacas).
 * [ ] Armar colección de Postman para pruebas de la API.
 * [ ] Agregar datos de prueba (seeders) y tests automáticos.
@@ -439,10 +443,10 @@ POST   /api/entradas                 ✅
 
 ## 🐳 Docker
 
-Docker facilita la configuración del entorno de desarrollo. Hoy el archivo `docker-compose.yml` levanta **solo la base de datos** (PostgreSQL 16, base `gestion_cine`, puerto 5432, con un volumen para conservar los datos):
+Docker facilita la configuración del entorno de desarrollo. Hoy el archivo `docker-compose.yml` levanta **solo la base de datos** (PostgreSQL 16, base `gestion_cine`, volumen persistente). El puerto de host puede ser 5432 o 5433 según la configuración local de cada integrante:
 
 ```bash
-docker-compose up -d db
+docker compose up -d db
 ```
 
 Todavía no hay contenedores para el backend ni para el frontend: se ejecutan de forma manual con `npm run dev`. Completar el `docker-compose.yml` con ambos servicios es un pendiente.
@@ -453,7 +457,7 @@ Todavía no hay contenedores para el backend ni para el frontend: se ejecutan de
 
 Se utilizará **Postman** para realizar pruebas sobre la API REST, comprobando respuestas HTTP, registro de usuarios, autenticación, creación/actualización/eliminación de recursos, validaciones, manejo de errores, autorización según roles, relaciones entre entidades, disponibilidad de butacas y registro de compras.
 
-Por ahora las pruebas son **manuales** (todavía no hay colección de Postman ni tests automáticos). Algunos casos que se verifican a mano:
+Las pruebas del flujo frontend/backend se realizaron **manualmente** mediante PowerShell y navegador. No hay un conjunto de tests automáticos propio verificado para estas ramas; la ejecución de `npm test` en backend todavía no configura pruebas reales. Algunos casos a revisar:
 
 | Pedido | Respuesta esperada |
 | --- | --- |
@@ -486,7 +490,7 @@ gestion-cine/
 │       └── utils/            # AppError, asyncHandler, jwt, params, validar
 │
 ├── frontend/
-│   └── src/                  # React + TypeScript + Vite (plantilla inicial)
+│   └── src/                  # React + TypeScript + Vite (implementación depende de la rama)
 │
 ├── docs/
 │   └── decisiones-diseno.md  # análisis de diseño del Taller II
@@ -496,7 +500,7 @@ gestion-cine/
 └── README.md
 ```
 
-Quedan por incorporar `migrations/`, `seeders/`, los `Dockerfile` del backend y frontend, y la organización interna del frontend (`components/`, `pages/`, `services/`, `types/`). Esta estructura podrá ajustarse a medida que evolucione el proyecto, siempre buscando mantener nombres claros, consistencia con el stack elegido y facilidad para encontrar archivos.
+Se incorporaron scripts SQL de migración en el trabajo más reciente del backend; comprobar si están integrados en la rama actual. Quedan por preparar `seeders/`, los `Dockerfile` del backend y frontend, y la organización interna del frontend (`components/`, `pages/`, `services/`, `types/`). Esta estructura podrá ajustarse a medida que evolucione el proyecto, siempre buscando mantener nombres claros, consistencia con el stack elegido y facilidad para encontrar archivos.
 
 ---
 
@@ -505,6 +509,54 @@ Quedan por incorporar `migrations/`, `seeders/`, los `Dockerfile` del backend y 
 El análisis de diseño y mantenibilidad del Taller II (diagnóstico, alternativas, decisión y trade-offs sobre el código real) está en [`docs/decisiones-diseno.md`](docs/decisiones-diseno.md).
 
 ---
+
+
+---
+
+## ✅ Validaciones locales (Taller III)
+
+Desde la raíz del repositorio, ejecutar por separado:
+
+```powershell
+cd backend
+npm ci
+npm run build
+
+cd ../frontend
+npm ci
+npm run lint
+npm run build
+```
+
+Los comandos `build` compilan TypeScript y, en frontend, también generan `dist/`. `lint` valida reglas estáticas del frontend. **No equivale a tener pruebas automatizadas unitarias o de integración**: estas aún deben incorporarse y ejecutarse en un entorno reproducible. Si alguna validación falla, registrar y corregir el resultado en lugar de marcarla como aprobada.
+
+### Casos de prueba propuestos
+
+Regla de negocio: **no permitir funciones superpuestas en una misma sala**. Casos a automatizar: sala libre (aceptar), funciones que se solapan (HTTP 409), funciones consecutivas sin solapamiento (aceptar) y funciones canceladas (no bloquear horario). Las pruebas de reserva simultánea y doble venta requieren además verificar restricciones de base de datos.
+
+---
+
+## 🔀 Trabajo colaborativo y Pull Requests (Taller III)
+
+1. Actualizar la rama de base antes de iniciar una tarea y trabajar en una rama específica (`feature/`, `fix/` o `docs/`).
+2. Hacer commits pequeños con mensajes claros, relacionados con una funcionalidad o corrección.
+3. Ejecutar localmente las validaciones aplicables antes de subir la rama.
+4. Subir la rama a GitHub y abrir un **Pull Request a `dev`**.
+5. Describir qué cambió, cómo se probó, riesgos conocidos y capturas si se modificó la interfaz.
+6. Solicitar revisión de otro integrante; resolver observaciones y conflictos antes de fusionar.
+7. Una vez habilitado, ejecutar en CI las mismas verificaciones de compilación, lint y tests que en local. **No se debe afirmar que existe CI funcional hasta crear y verificar el workflow**.
+
+El código de `feature/frontend-cine` no se considera integrado a otras ramas solo por estar subido al remoto.
+
+---
+
+## ⚠️ Limitaciones conocidas
+
+- En el frontend de pruebas se usa `usuarioId = 1`, precio ficticio por butaca y una URL local fija para la API; no es apto para ventas reales.
+- Una compra se crea como `pendiente`; el backend revisado no expone un flujo de confirmación de pago integrado al frontend.
+- La reserva de varias butacas se realiza mediante varias solicitudes, no en una transacción única del lado del servidor. Ante fallas parciales, el frontend intenta liberar las reservas creadas, pero puede requerirse revisión manual.
+- Las reservas duran 15 minutos y su vencimiento se procesa al ejecutar operaciones que comprueban reservas vencidas.
+- No publicar `.env`, secretos, `node_modules` ni datos locales de prueba en entregas o commits.
 
 ## 🎯 Objetivo final
 
