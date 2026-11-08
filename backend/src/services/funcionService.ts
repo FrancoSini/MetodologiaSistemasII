@@ -8,6 +8,7 @@ import {
   Sala,
 } from "../models";
 import { AppError } from "../utils/AppError";
+import { haySuperposicionHorarios } from "../utils/superposicionHorarios";
 // Al crear una función hay que generar una fila FuncionButaca por cada butaca
 // de la sala, todas "disponible". Ahí vive el estado de cada asiento PARA ESA función.
 export async function generarButacasDeFuncion(funcion: Funcion, transaction?: Transaction) {
@@ -145,20 +146,25 @@ export async function crearFuncionConValidacion(
         funcion.hora
       );
 
-      const finExistente =
-        inicioExistente +
-        peliculaExistente.duracionMinutos * 60_000;
+      
+    const finExistente =
+      inicioExistente +
+      peliculaExistente.duracionMinutos * 60_000;
 
-      const haySuperposicion =
-        inicioNuevo < finExistente &&
-        finNuevo > inicioExistente;
+    const haySuperposicion = haySuperposicionHorarios(
+      inicioNuevo,
+      finNuevo,
+      inicioExistente,
+      finExistente
+    );
 
-      if (haySuperposicion) {
-        throw new AppError(
-          "La sala ya tiene una función en ese horario",
-          409
-        );
-      }
+    if (haySuperposicion) {
+      throw new AppError(
+        "La sala ya tiene una función en ese horario",
+        409
+      );
+    }
+
     }
 
     // Solo creamos la función si el horario está libre.
@@ -284,20 +290,25 @@ export async function actualizarHorarioFuncion(
         otra.hora
       );
 
-      const finExistente =
-        inicioExistente +
-        otraPelicula.duracionMinutos * 60_000;
+      
+    const finExistente =
+      inicioExistente +
+      otraPelicula.duracionMinutos * 60_000;
 
-      const haySuperposicion =
-        inicioNuevo < finExistente &&
-        finNuevo > inicioExistente;
+    const haySuperposicion = haySuperposicionHorarios(
+      inicioNuevo,
+      finNuevo,
+      inicioExistente,
+      finExistente
+    );
 
-      if (haySuperposicion) {
-        throw new AppError(
-          "La sala ya tiene una función en ese horario",
-          409
-        );
-      }
+    if (haySuperposicion) {
+      throw new AppError(
+        "La sala ya tiene una función en ese horario",
+        409
+      );
+    }
+
     }
 
     // Actualizar únicamente fecha y hora.
