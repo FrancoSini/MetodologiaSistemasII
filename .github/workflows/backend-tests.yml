@@ -1,0 +1,39 @@
+
+name: Backend - Tests y Build
+
+on:
+  pull_request:
+    branches:
+      - dev
+  push:
+    branches:
+      - test/validacion-funciones
+
+jobs:
+  verificar-backend:
+    name: Verificar backend
+    runs-on: ubuntu-latest
+
+    defaults:
+      run:
+        working-directory: backend
+
+    steps:
+      - name: Descargar repositorio
+        uses: actions/checkout@v4
+
+      - name: Configurar Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+          cache-dependency-path: backend/package-lock.json
+
+      - name: Instalar dependencias
+        run: npm ci
+
+      - name: Ejecutar pruebas unitarias
+        run: npm test
+
+      - name: Compilar TypeScript
+        run: npm run build
