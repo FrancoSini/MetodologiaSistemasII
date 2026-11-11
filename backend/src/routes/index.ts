@@ -3,7 +3,7 @@ import sequelize from "../config/database";
 import { asyncHandler } from "../utils/asyncHandler";
 
 
-
+import autenticacionRouter from "./autenticacion.routes";
 import productosRoutes from "./productos.routes";
 import entradasRoutes from "./entradas.routes";
 import comprasRoutes from "./compras.routes";
@@ -24,7 +24,7 @@ router.get(
 );
 
 // Los routers de cada módulo se van montando acá a medida que se implementan:
-// router.use("/autenticacion", autenticacionRouter);
+router.use("/autenticacion", autenticacionRouter);
 // router.use("/peliculas", peliculasRouter);
 // router.use("/salas", salasRouter);
 // router.use("/funciones", funcionesRouter);
