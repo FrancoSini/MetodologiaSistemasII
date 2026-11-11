@@ -7,6 +7,7 @@ import autenticacionRouter from "./autenticacion.routes";
 import productosRoutes from "./productos.routes";
 import entradasRoutes from "./entradas.routes";
 import comprasRoutes from "./compras.routes";
+import usuariosRouter from "./usuarios.routes";
 
 import peliculasRouter from "./peliculas.routes";
 import salasRouter from "./salas.routes";
@@ -25,6 +26,7 @@ router.get(
 
 // Los routers de cada módulo se van montando acá a medida que se implementan:
 router.use("/autenticacion", autenticacionRouter);
+router.use("/usuarios", usuariosRouter);
 // router.use("/peliculas", peliculasRouter);
 // router.use("/salas", salasRouter);
 // router.use("/funciones", funcionesRouter);
