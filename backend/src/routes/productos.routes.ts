@@ -1,21 +1,38 @@
 import { Router } from "express";
 import * as productosController from "../controllers/productos.controller";
-import { validarProducto } from "../middlewares/validarproducto";
+import {
+  validarProducto,
+  validarActualizarProducto,
+} from "../middlewares/validarproducto";
+import { validarToken, validarAdmin } from "../middlewares/auth";
 import { asyncHandler } from "../utils/asyncHandler";
 
 const router = Router();
 
-// Obtener todos los productos
 router.get("/", asyncHandler(productosController.obtenerProductos));
-
-// Obtener un producto por ID
 router.get("/:id", asyncHandler(productosController.obtenerProductoPorId));
 
-// Crear un producto: primero valida, después ejecuta el controller
 router.post(
   "/",
+  validarToken,
+  validarAdmin,
   validarProducto,
   asyncHandler(productosController.crearProducto)
+);
+
+router.put(
+  "/:id",
+  validarToken,
+  validarAdmin,
+  validarActualizarProducto,
+  asyncHandler(productosController.actualizarProducto)
+);
+
+router.delete(
+  "/:id",
+  validarToken,
+  validarAdmin,
+  asyncHandler(productosController.eliminarProducto)
 );
 
 export default router;

@@ -1,40 +1,45 @@
 import { Request, Response } from "express";
-import Producto from "../models/Producto";
-import { AppError } from "../utils/AppError";
+import * as productoService from "../services/productoService";
+import { obtenerId } from "../utils/params";
 
 // GET /api/productos
-export const obtenerProductos = async (req: Request, res: Response) => {
-  const productos = await Producto.findAll();
+export const obtenerProductos = async (_req: Request, res: Response) => {
+  const productos = await productoService.obtenerProductos();
   return res.status(200).json(productos);
 };
 
 // GET /api/productos/:id
 export const obtenerProductoPorId = async (req: Request, res: Response) => {
-  const id = Number(req.params.id);
-
-  if (!Number.isInteger(id) || id <= 0) {
-    throw new AppError("El ID debe ser un número entero positivo", 400);
-  }
-
-  const producto = await Producto.findByPk(id);
-
-  if (!producto) {
-    throw new AppError("Producto no encontrado", 404);
-  }
-
+  const id = obtenerId(req.params.id);
+  const producto = await productoService.obtenerProductoPorId(id);
   return res.status(200).json(producto);
 };
 
 // POST /api/productos
 export const crearProducto = async (req: Request, res: Response) => {
   const { nombre, precio, stock, categoria } = req.body;
-
-  const producto = await Producto.create({
-    nombre: nombre.trim(),
+  const producto = await productoService.crearProducto({
+    nombre,
     precio,
     stock,
-    categoria: categoria.trim(),
+    categoria,
   });
-
   return res.status(201).json(producto);
+};
+
+// PUT /api/productos/:id
+export const actualizarProducto = async (req: Request, res: Response) => {
+  const id = obtenerId(req.params.id);
+  const productoActualizado = await productoService.actualizarProducto(
+    id,
+    req.body
+  );
+  return res.status(200).json(productoActualizado);
+};
+
+// DELETE /api/productos/:id
+export const eliminarProducto = async (req: Request, res: Response) => {
+  const id = obtenerId(req.params.id);
+  await productoService.eliminarProducto(id);
+  return res.status(204).send();
 };
