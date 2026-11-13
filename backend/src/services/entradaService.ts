@@ -1,5 +1,8 @@
 
 import sequelize from "../config/database";
+import { Transaction } from "sequelize";
+
+
 import {
   Compra,
   Entrada,
@@ -16,7 +19,10 @@ interface EmitirEntradaDTO {
   codigo: string;
 }
 
-export async function emitirEntrada(datos: EmitirEntradaDTO) {
+export async function emitirEntrada(
+  datos: EmitirEntradaDTO,
+  transactionExterna?: Transaction
+) {
   const { compraId, funcionButacaId, codigo } = datos;
 
   // 1. Validar los datos de entrada.
@@ -34,7 +40,7 @@ export async function emitirEntrada(datos: EmitirEntradaDTO) {
     );
   }
 
-  return sequelize.transaction(async (t) => {
+  const ejecutar = async (t: Transaction) => {
     // 2. Verificar la compra.
     const compra = await Compra.findByPk(compraId, {
       transaction: t,
@@ -73,8 +79,7 @@ export async function emitirEntrada(datos: EmitirEntradaDTO) {
       throw new AppError("Funcion no encontrada", 404);
     }
 
-    // 4. Bloquear sala, funcion y butaca
-    // siguiendo el mismo orden que los otros servicios.
+    // 4. Bloquear sala, funcion y butaca.
     const sala = await Sala.findByPk(
       funcionInicial.salaId,
       {
@@ -140,7 +145,6 @@ export async function emitirEntrada(datos: EmitirEntradaDTO) {
     }
 
     if (reserva) {
-      // La reserva debe pertenecer a la misma compra.
       if (reserva.compraId !== compraId) {
         throw new AppError(
           "La butaca esta reservada por otra compra",
@@ -148,7 +152,6 @@ export async function emitirEntrada(datos: EmitirEntradaDTO) {
         );
       }
 
-      // No se permite consumir una reserva vencida.
       if (reserva.venceEn.getTime() <= Date.now()) {
         throw new AppError(
           "La reserva ha vencido",
@@ -156,7 +159,6 @@ export async function emitirEntrada(datos: EmitirEntradaDTO) {
         );
       }
 
-      // Una reserva activa exige una butaca reservada.
       if (butaca.estado !== "reservada") {
         throw new AppError(
           "El estado de la reserva y la butaca no coincide",
@@ -164,8 +166,6 @@ export async function emitirEntrada(datos: EmitirEntradaDTO) {
         );
       }
     } else {
-      // Si no existe reserva activa, solo se admite
-      // la venta directa de una butaca disponible.
       if (butaca.estado !== "disponible") {
         throw new AppError(
           "La butaca no esta disponible",
@@ -184,7 +184,7 @@ export async function emitirEntrada(datos: EmitirEntradaDTO) {
       { transaction: t }
     );
 
-    // 8. Marcar la reserva como consumida, si existe.
+    // 8. Consumir la reserva.
     if (reserva) {
       await reserva.update(
         { estado: "consumida" },
@@ -199,5 +199,13 @@ export async function emitirEntrada(datos: EmitirEntradaDTO) {
     );
 
     return entrada;
-  });
+  };
+
+  // Si recibimos una transaccion externa, la reutilizamos.
+  if (transactionExterna) {
+    return ejecutar(transactionExterna);
+  }
+
+  // Si no, creamos una transaccion propia.
+  return sequelize.transaction(ejecutar);
 }

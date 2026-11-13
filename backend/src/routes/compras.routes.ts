@@ -1,23 +1,18 @@
-
 import { Router } from "express";
 import * as comprasController from "../controllers/compras.controller";
-
-
-import { asyncHandler } from "../utils/asyncHandler";
-
-
+import { validarToken } from "../middlewares/auth";
 
 const router = Router();
 
-// Obtener todas las compras
+router.use(validarToken);
+
 router.get("/", comprasController.obtenerCompras);
-
-// Obtener una compra por ID
 router.get("/:id", comprasController.obtenerCompraPorId);
-
-// Registrar una compra
 router.post("/", comprasController.crearCompra);
 
+router.get("/mis-compras", comprasController.obtenerMisCompras);
+
+router.post("/:id/pagar", comprasController.pagarCompra);
 export default router;
 
 
