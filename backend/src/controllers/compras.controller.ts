@@ -4,6 +4,8 @@ import Compra from "../models/Compra";
 import { crearCompra as crearCompraService } from "../services/compraService";
 import { AppError } from "../utils/AppError";
 
+import { procesarPago } from "../services/pagoService";
+
 // GET /api/compras
 export const obtenerCompras = async (req: Request, res: Response) => {
   const compras = await Compra.findAll();
@@ -80,4 +82,31 @@ export const obtenerMisCompras = async (req: Request, res: Response) => {
   });
 
   return res.status(200).json(compras);
+};
+
+
+
+export const pagarCompra = async (req: Request, res: Response) => {
+  const usuarioAutenticado = (req as authRequest).usuario;
+
+  if (!usuarioAutenticado) {
+    throw new AppError("Usuario no autenticado", 401);
+  }
+
+  const usuarioId = Number(usuarioAutenticado.uid);
+  const compraId = Number(req.params.id);
+
+  const { simularRechazo = false } = req.body;
+
+  if (typeof simularRechazo !== "boolean") {
+    throw new AppError("simularRechazo debe ser un valor booleano", 400);
+  }
+
+  const resultado = await procesarPago({
+    compraId,
+    usuarioId,
+    simularRechazo,
+  });
+
+  return res.status(200).json(resultado);
 };

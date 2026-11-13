@@ -12,7 +12,7 @@ router.post("/", comprasController.crearCompra);
 
 router.get("/mis-compras", comprasController.obtenerMisCompras);
 
-
+router.post("/:id/pagar", comprasController.pagarCompra);
 export default router;
 
 
