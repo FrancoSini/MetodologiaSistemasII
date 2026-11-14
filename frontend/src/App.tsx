@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import "./App.css";
 import AuthPanel, { type Sesion } from "./components/AuthPanel";
-
+import MisEntradas from "./components/MisEntradas";
 
 interface Pelicula {
   id: number;
@@ -534,6 +534,17 @@ function App() {
             setErrorPago("");
           }}
         />
+        {sesion && (
+          <MisEntradas
+            key={sesion.uid}
+            sesion={sesion}
+            compraActualId={
+              resultadoPago?.aprobado
+                ? comprobante?.compraId
+                : undefined
+            }
+          />
+        )}
         <h2>Cartelera de películas</h2>
 
         {/* COMPROBANTE DE RESERVA PENDIENTE */}
