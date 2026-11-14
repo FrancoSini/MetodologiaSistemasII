@@ -532,3 +532,33 @@ button:focus-visible {
   font-size: 14px;
   margin: 0;
 }
+/* Agregar estas reglas AL FINAL de frontend/src/App.css */
+.acciones-pago {
+  margin-top: 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.boton-pagar,
+.boton-rechazar {
+  border: 0;
+  border-radius: 9px;
+  padding: 14px 18px;
+  color: #fff;
+  font: inherit;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.boton-pagar { background: #15803d; }
+.boton-rechazar { background: #b91c1c; }
+.boton-pagar:disabled,
+.boton-rechazar:disabled { opacity: 0.6; cursor: not-allowed; }
+
+.pago-aprobado,
+.pago-rechazado { padding: 16px; border-radius: 10px; }
+.pago-aprobado { background: #dcfce7; color: #166534; }
+.pago-rechazado { background: #fee2e2; color: #991b1b; }
+.pago-aprobado h4,
+.pago-rechazado h4 { margin-top: 0; }
