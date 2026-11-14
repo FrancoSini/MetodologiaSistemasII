@@ -1,6 +1,8 @@
 
 import { useEffect, useRef, useState } from "react";
 import "./App.css";
+import AuthPanel,{type Sesion,}from "./components/AuthPanel";
+
 
 interface Pelicula {
   id: number;
@@ -118,6 +120,7 @@ function App() {
     useState<Comprobante | null>(null);
 
   const reservaEnCurso = useRef(false);
+  const [sesion, setSesion] = useState<Sesion | null>(null);
 
   // Cargar películas.
   useEffect(() => {
@@ -512,6 +515,14 @@ function App() {
       </header>
 
       <main className="contenido">
+        <AuthPanel
+          sesion={sesion}
+          onAutenticado={setSesion}
+          onCerrarSesion={() => {
+            setSesion(null);
+            setComprobante(null);
+          }}
+        />
         <h2>Cartelera de películas</h2>
 
         {/* COMPROBANTE DE RESERVA PENDIENTE */}
