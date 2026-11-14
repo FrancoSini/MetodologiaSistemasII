@@ -1,6 +1,7 @@
-
 import { useEffect, useRef, useState } from "react";
 import "./App.css";
+import AuthPanel, { type Sesion } from "./components/AuthPanel";
+import MisEntradas from "./components/MisEntradas";
 
 interface Pelicula {
   id: number;
@@ -36,14 +37,17 @@ interface Butaca {
 
 interface Compra {
   id: number;
-  estado: string;
+  estado: "pendiente" | "confirmada" | "cancelada";
+  total: number | string;
+  medioPago: "efectivo" | "debito" | "credito";
 }
 
-interface Reserva {
-  id: number;
-  venceEn: string;
-  estado: string;
+interface RespuestaCrearCompra {
+  mensaje: string;
+  compra: Compra;
 }
+
+
 
 interface Comprobante {
   compraId: number;
@@ -53,14 +57,19 @@ interface Comprobante {
   sala: string;
   butacas: string[];
   total: number;
-  venceEn: string | null;
+}
+interface ResultadoPago {
+  aprobado: boolean;
+  mensaje: string;
+  entradasEmitidas?: number;
 }
 
 const API_URL = "http://localhost:3001/api";
 
 // Datos exclusivos para pruebas locales.
-const USUARIO_PRUEBA_ID = 1;
-const PRECIO_BUTACA = 5000;
+// Precio de referencia mostrado antes de crear la compra.
+// El importe definitivo lo calcula el backend.
+const PRECIO_BUTACA = 9000;
 
 function formatearFecha(fecha: string) {
   return fecha.split("-").reverse().join("/");
@@ -116,8 +125,15 @@ function App() {
   const [errorReserva, setErrorReserva] = useState("");
   const [comprobante, setComprobante] =
     useState<Comprobante | null>(null);
+ 
+  const [procesandoPago, setProcesandoPago] = useState(false);
+  const [resultadoPago, setResultadoPago] =
+    useState<ResultadoPago | null>(null);
+  const [errorPago, setErrorPago] = useState("");
 
   const reservaEnCurso = useRef(false);
+  const pagoEnCurso = useRef(false);
+  const [sesion, setSesion] = useState<Sesion | null>(null);
 
   // Cargar películas.
   useEffect(() => {
@@ -320,12 +336,20 @@ function App() {
   }
 
   // Crear compra y reservar las butacas seleccionadas.
+  
   async function reservarButacas(funcionId: number) {
     if (
       reservaEnCurso.current ||
       butacasSeleccionadas.length === 0 ||
       funcionSeleccionada !== funcionId
     ) {
+      return;
+    }
+
+    if (!sesion) {
+      setErrorReserva(
+        "Tenés que iniciar sesión para reservar butacas."
+      );
       return;
     }
 
@@ -346,78 +370,56 @@ function App() {
       (p) => p.id === funcion?.peliculaId
     );
 
-    const reservasRealizadas: number[] = [];
-    const vencimientos: number[] = [];
-    let compraId: number | null = null;
-
     try {
-      // 1. Crear una compra pendiente.
-      const respuestaCompra = await fetch(`${API_URL}/compras`, {
+      // El backend crea la compra y realiza las reservas.
+      const respuesta = await fetch(`${API_URL}/compras`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
+          Authorization: `Bearer ${sesion.token}`,
         },
         body: JSON.stringify({
-          usuarioId: USUARIO_PRUEBA_ID,
           medioPago: "efectivo",
-          total: idsButacas.length * PRECIO_BUTACA,
+          productos: [],
+          entradas: idsButacas.map((id) => ({
+            funcionButacaId: id,
+          })),
         }),
       });
 
       await verificarRespuesta(
-        respuestaCompra,
+        respuesta,
         "No se pudo crear la compra"
       );
 
-      const compra: Compra = await respuestaCompra.json();
+      const datos: RespuestaCrearCompra =
+        await respuesta.json();
+
+      const compra = datos.compra;
 
       if (
+        !compra ||
         !Number.isInteger(compra.id) ||
         compra.id <= 0 ||
         compra.estado !== "pendiente"
       ) {
-        throw new Error("La compra creada no es válida");
+        throw new Error(
+          "El backend devolvió una compra inválida."
+        );
       }
 
-      compraId = compra.id;
+      const total = Number(compra.total);
 
-      // 2. Reservar una por una.
-      for (const butacaId of idsButacas) {
-        const respuestaReserva = await fetch(
-          `${API_URL}/funciones/${funcionId}/butacas/${butacaId}/reservar`,
-          {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-            },
-            body: JSON.stringify({ compraId }),
-          }
+      if (!Number.isFinite(total)) {
+        throw new Error(
+          "No se pudo interpretar el total de la compra."
         );
-
-        await verificarRespuesta(
-          respuestaReserva,
-          `No se pudo reservar la butaca ${butacaId}`
-        );
-
-        reservasRealizadas.push(butacaId);
-
-        const reserva: Reserva = await respuestaReserva.json();
-        const vencimiento = new Date(reserva.venceEn).getTime();
-
-        if (Number.isFinite(vencimiento)) {
-          vencimientos.push(vencimiento);
-        }
       }
 
-      // 3. Guardar los datos del comprobante.
-      // Se usa el vencimiento más cercano.
-      const vencimientoMasCercano =
-        vencimientos.length > 0
-          ? new Date(Math.min(...vencimientos)).toISOString()
-          : null;
-
+      setResultadoPago(null);
+      setErrorPago("");
       setComprobante({
-        compraId,
+        compraId: compra.id,
         pelicula: pelicula?.titulo ?? "Película",
         fecha: funcion?.fecha ?? "",
         hora: funcion?.hora ?? "",
@@ -425,60 +427,16 @@ function App() {
           funcion?.Sala?.nombre ??
           `Sala ${funcion?.salaId ?? ""}`,
         butacas: nombresButacas,
-        total: idsButacas.length * PRECIO_BUTACA,
-        venceEn: vencimientoMasCercano,
+        total,
       });
 
       setButacasSeleccionadas([]);
     } catch (error) {
-      const motivo =
+      setErrorReserva(
         error instanceof Error
           ? error.message
-          : "Ocurrió un error al reservar";
-
-      const liberacionesFallidas: number[] = [];
-
-      // Intentar revertir las reservas ya realizadas.
-      if (compraId !== null) {
-        for (const butacaId of reservasRealizadas) {
-          try {
-            const respuestaLiberar = await fetch(
-              `${API_URL}/funciones/${funcionId}/butacas/${butacaId}/liberar`,
-              {
-                method: "PATCH",
-                headers: {
-                  "Content-Type": "application/json",
-                },
-                body: JSON.stringify({ compraId }),
-              }
-            );
-
-            await verificarRespuesta(
-              respuestaLiberar,
-              "No se pudo liberar la reserva"
-            );
-          } catch {
-            liberacionesFallidas.push(butacaId);
-          }
-        }
-      }
-
-      let mensaje = motivo;
-
-      if (compraId !== null) {
-        mensaje += ` La compra pendiente #${compraId} quedó creada.`;
-
-        if (liberacionesFallidas.length > 0) {
-          mensaje +=
-            " No se pudieron liberar todas las butacas. " +
-            "Revisá las reservas antes de repetir la operación.";
-        } else if (reservasRealizadas.length > 0) {
-          mensaje +=
-            " Se intentó liberar las reservas realizadas.";
-        }
-      }
-
-      setErrorReserva(mensaje);
+          : "Ocurrió un error al crear la compra."
+      );
     } finally {
       try {
         await actualizarButacas(funcionId);
@@ -486,12 +444,66 @@ function App() {
       } catch {
         setErrorButacas(
           "No se pudo actualizar la disponibilidad. " +
-            "Cerrá y volvé a abrir el mapa antes de reservar."
+          "Volvé a abrir el mapa antes de reservar."
         );
       }
 
       reservaEnCurso.current = false;
       setReservando(false);
+    }
+  }
+
+  // Procesar el pago simulado de la compra pendiente.
+  async function pagarCompra(simularRechazo = false) {
+    if (!sesion || !comprobante || pagoEnCurso.current || resultadoPago) {
+      return;
+    }
+
+    const compraId = comprobante.compraId;
+    pagoEnCurso.current = true;
+    setProcesandoPago(true);
+    setErrorPago("");
+
+    try {
+      const respuesta = await fetch(`${API_URL}/compras/${compraId}/pagar`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${sesion.token}`,
+        },
+        body: JSON.stringify({ simularRechazo }),
+      });
+
+      await verificarRespuesta(respuesta, "No se pudo procesar el pago");
+      const datos: ResultadoPago = await respuesta.json();
+
+      if (typeof datos.aprobado !== "boolean") {
+        throw new Error("El backend devolvió una respuesta de pago inválida.");
+      }
+
+      // El backend ya confirmó o canceló la compra; no volver a pagarla.
+      setResultadoPago({
+        aprobado: datos.aprobado,
+        mensaje: datos.mensaje ?? (datos.aprobado ? "Pago aprobado" : "Pago rechazado"),
+        entradasEmitidas: datos.entradasEmitidas,
+      });
+    } catch (error) {
+      // Ante una respuesta incierta, no reintentar automáticamente el pago.
+      setErrorPago(
+        (error instanceof Error ? error.message : "Error al procesar el pago") +
+          ". Si no sabés si se procesó, verificá la compra antes de reintentar."
+      );
+    } finally {
+      try {
+        if (funcionSeleccionada !== null) {
+          await actualizarButacas(funcionSeleccionada);
+          setErrorButacas("");
+        }
+      } catch {
+        setErrorButacas("No se pudo actualizar el mapa de butacas. Recargá la función.");
+      }
+      pagoEnCurso.current = false;
+      setProcesandoPago(false);
     }
   }
 
@@ -512,22 +524,55 @@ function App() {
       </header>
 
       <main className="contenido">
+        <AuthPanel
+          sesion={sesion}
+          onAutenticado={setSesion}
+          onCerrarSesion={() => {
+            setSesion(null);
+            setComprobante(null);
+            setResultadoPago(null);
+            setErrorPago("");
+          }}
+        />
+        {sesion && (
+          <MisEntradas
+            key={sesion.uid}
+            sesion={sesion}
+            compraActualId={
+              resultadoPago?.aprobado
+                ? comprobante?.compraId
+                : undefined
+            }
+          />
+        )}
         <h2>Cartelera de películas</h2>
 
         {/* COMPROBANTE DE RESERVA PENDIENTE */}
         {comprobante && (
           <section className="comprobante" aria-live="polite">
             <div className="comprobante-encabezado">
-              <h3>Reserva registrada</h3>
+              <h3>
+                {resultadoPago?.aprobado
+                  ? "Compra confirmada"
+                  : resultadoPago
+                    ? "Compra cancelada"
+                    : "Reserva registrada"}
+              </h3>
               <span className="etiqueta-pendiente">
-                Compra pendiente
+                {resultadoPago?.aprobado
+                  ? "Pago aprobado"
+                  : resultadoPago
+                    ? "Pago rechazado"
+                    : "Compra pendiente"}
               </span>
             </div>
 
             <p className="comprobante-aviso">
-              Tus butacas fueron reservadas temporalmente.
-              Este comprobante no es una entrada y no acredita
-              un pago.
+              {resultadoPago?.aprobado
+                ? "El pago simulado fue aprobado. El backend confirmó la compra y procesó las entradas."
+                : resultadoPago
+                  ? "El pago simulado fue rechazado. La compra fue cancelada."
+                  : "Tus butacas fueron reservadas temporalmente. Este comprobante no es una entrada y no acredita un pago."}
             </p>
 
             <div className="comprobante-datos">
@@ -553,25 +598,65 @@ function App() {
                 {comprobante.butacas.join(", ")}
               </p>
               <p>
-                <strong>Total de prueba:</strong>{" "}
+                <strong>Total de la compra:</strong>{" "}
                 {formatearImporte(comprobante.total)}
               </p>
               <p>
-                <strong>Vencimiento:</strong>{" "}
-                {comprobante.venceEn
-                  ? new Date(
-                      comprobante.venceEn
-                    ).toLocaleString("es-AR")
-                  : "Consultar disponibilidad"}
+                <strong>Estado:</strong>{" "}
+                {resultadoPago?.aprobado
+                  ? "Confirmada"
+                  : resultadoPago
+                    ? "Cancelada"
+                    : "Pendiente de pago"}
               </p>
             </div>
 
-            <p className="comprobante-nota">
-              La reserva vence automáticamente según el
-              backend. Este comprobante muestra el resultado
-              registrado en esta sesión, no confirma que
-              la reserva siga vigente.
-            </p>
+            {!resultadoPago && (
+              <p className="comprobante-nota">
+                Las reservas vencen automáticamente según el backend.
+                El comprobante no confirma que sigan vigentes.
+                El pago es simulado y no implica un cobro real.
+              </p>
+            )}
+
+            <div className="acciones-pago">
+              {!resultadoPago ? (
+                <>
+                  <button
+                    type="button"
+                    className="boton-pagar"
+                    onClick={() => pagarCompra(false)}
+                    disabled={procesandoPago || !sesion}
+                  >
+                    {procesandoPago ? "Procesando pago..." : "Confirmar pago simulado"}
+                  </button>
+                  <button
+                    type="button"
+                    className="boton-rechazar"
+                    onClick={() => pagarCompra(true)}
+                    disabled={procesandoPago || !sesion}
+                  >
+                    Simular pago rechazado
+                  </button>
+                </>
+              ) : (
+                <div className={resultadoPago.aprobado ? "pago-aprobado" : "pago-rechazado"} role="status">
+                  <h4>{resultadoPago.aprobado ? "Pago aprobado" : "Pago rechazado"}</h4>
+                  <p>{resultadoPago.mensaje}</p>
+                  {resultadoPago.aprobado ? (
+                    <p>
+                      Entradas emitidas: <strong>{resultadoPago.entradasEmitidas ?? "Sin informar"}</strong>
+                    </p>
+                  ) : (
+                    <p>El backend canceló la compra y liberó las reservas activas.</p>
+                  )}
+                  {resultadoPago.aprobado && (
+                    <small>Esta pantalla es un comprobante del pago simulado, no presenta los códigos individuales de entrada.</small>
+                  )}
+                </div>
+              )}
+              {errorPago && <p className="error" role="alert">{errorPago}</p>}
+            </div>
           </section>
         )}
 
@@ -818,7 +903,7 @@ function App() {
 
                                       <p>
                                         <strong>
-                                          Total de prueba:{" "}
+                                          Total estimado:{" "}
                                           {formatearImporte(
                                             totalSeleccionado
                                           )}
@@ -826,8 +911,8 @@ function App() {
                                       </p>
 
                                       <small>
-                                        Precio ficticio. No se
-                                        procesan pagos reales.
+                                        Precio orientativo. El backend calcula el total.
+                                        No se procesan pagos reales.
                                       </small>
 
                                       <button

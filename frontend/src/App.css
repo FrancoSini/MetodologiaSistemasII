@@ -455,3 +455,183 @@ button:focus-visible {
     grid-template-columns: 1fr;
   }
 }
+
+/* AUTENTICACIÓN */
+
+.auth-panel {
+  max-width: 460px;
+  margin: 0 auto 32px;
+  padding: 24px;
+  background: #fff;
+  border: 1px solid #e5e7eb;
+  border-radius: 14px;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.06);
+}
+
+.auth-panel h2 {
+  margin: 0 0 20px;
+  color: #172554;
+}
+
+.auth-form {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.auth-form label {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.auth-form input {
+  width: 100%;
+  padding: 12px;
+  border: 1px solid #cbd5e1;
+  border-radius: 8px;
+  font: inherit;
+}
+
+.auth-form input:focus {
+  outline: 2px solid #2563eb;
+  outline-offset: 1px;
+}
+
+.auth-boton {
+  width: 100%;
+  padding: 12px;
+  background: #1d4ed8;
+  color: white;
+  border: 0;
+  border-radius: 8px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.auth-boton:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.auth-cambiar {
+  display: block;
+  width: 100%;
+  margin-top: 14px;
+  padding: 8px;
+  border: 0;
+  background: transparent;
+  color: #1d4ed8;
+  cursor: pointer;
+}
+
+.auth-error {
+  color: #b91c1c;
+  font-size: 14px;
+  margin: 0;
+}
+/* Agregar estas reglas AL FINAL de frontend/src/App.css */
+.acciones-pago {
+  margin-top: 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.boton-pagar,
+.boton-rechazar {
+  border: 0;
+  border-radius: 9px;
+  padding: 14px 18px;
+  color: #fff;
+  font: inherit;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.boton-pagar { background: #15803d; }
+.boton-rechazar { background: #b91c1c; }
+.boton-pagar:disabled,
+.boton-rechazar:disabled { opacity: 0.6; cursor: not-allowed; }
+
+.pago-aprobado,
+.pago-rechazado { padding: 16px; border-radius: 10px; }
+.pago-aprobado { background: #dcfce7; color: #166534; }
+.pago-rechazado { background: #fee2e2; color: #991b1b; }
+.pago-aprobado h4,
+.pago-rechazado h4 { margin-top: 0; }
+
+/* MIS ENTRADAS */
+
+.mis-entradas {
+  margin: 28px 0;
+  padding: 24px;
+  background: #ffffff;
+  border: 1px solid #e5e7eb;
+  border-radius: 14px;
+}
+
+.mis-entradas-encabezado {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-bottom: 20px;
+}
+
+.mis-entradas-encabezado h2 {
+  margin: 0;
+  color: #172554;
+}
+
+.btn-actualizar-entradas {
+  padding: 10px 16px;
+  border: none;
+  border-radius: 8px;
+  background: #2563eb;
+  color: white;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.btn-actualizar-entradas:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.entradas-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: 16px;
+}
+
+.entrada-card {
+  padding: 20px;
+  border: 1px dashed #64748b;
+  border-radius: 12px;
+  background: #f8fafc;
+}
+
+.entrada-card h3 {
+  margin-top: 0;
+  color: #1e40af;
+}
+
+.codigo-entrada {
+  display: block;
+  padding: 12px;
+  margin: 10px 0;
+  background: #e2e8f0;
+  border-radius: 8px;
+  overflow-wrap: anywhere;
+  font-size: 13px;
+}
+
+.entrada-nota {
+  margin-bottom: 0;
+  font-size: 13px;
+  color: #475569;
+}
