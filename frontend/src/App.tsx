@@ -38,14 +38,17 @@ interface Butaca {
 
 interface Compra {
   id: number;
-  estado: string;
+  estado: "pendiente" | "confirmada" | "cancelada";
+  total: number | string;
+  medioPago: "efectivo" | "debito" | "credito";
 }
 
-interface Reserva {
-  id: number;
-  venceEn: string;
-  estado: string;
+interface RespuestaCrearCompra {
+  mensaje: string;
+  compra: Compra;
 }
+
+
 
 interface Comprobante {
   compraId: number;
@@ -61,8 +64,9 @@ interface Comprobante {
 const API_URL = "http://localhost:3001/api";
 
 // Datos exclusivos para pruebas locales.
-const USUARIO_PRUEBA_ID = 1;
-const PRECIO_BUTACA = 5000;
+// Precio de referencia mostrado antes de crear la compra.
+// El importe definitivo lo calcula el backend.
+const PRECIO_BUTACA = 9000;
 
 function formatearFecha(fecha: string) {
   return fecha.split("-").reverse().join("/");
@@ -323,180 +327,122 @@ function App() {
   }
 
   // Crear compra y reservar las butacas seleccionadas.
-  async function reservarButacas(funcionId: number) {
-    if (
-      reservaEnCurso.current ||
-      butacasSeleccionadas.length === 0 ||
-      funcionSeleccionada !== funcionId
-    ) {
-      return;
-    }
+  
+async function reservarButacas(funcionId: number) {
+  if (
+    reservaEnCurso.current ||
+    butacasSeleccionadas.length === 0 ||
+    funcionSeleccionada !== funcionId
+  ) {
+    return;
+  }
 
-    reservaEnCurso.current = true;
-    setReservando(true);
-    setErrorReserva("");
-    setComprobante(null);
+  if (!sesion) {
+    setErrorReserva(
+      "Tenés que iniciar sesión para reservar butacas."
+    );
+    return;
+  }
 
-    const idsButacas = [...butacasSeleccionadas];
+  reservaEnCurso.current = true;
+  setReservando(true);
+  setErrorReserva("");
+  setComprobante(null);
 
-    const nombresButacas = butacas
-      .filter((butaca) => idsButacas.includes(butaca.id))
-      .map((butaca) => `${butaca.fila}${butaca.numero}`);
+  const idsButacas = [...butacasSeleccionadas];
 
-    const funcion = funciones.find((f) => f.id === funcionId);
+  const nombresButacas = butacas
+    .filter((butaca) => idsButacas.includes(butaca.id))
+    .map((butaca) => `${butaca.fila}${butaca.numero}`);
 
-    const pelicula = peliculas.find(
-      (p) => p.id === funcion?.peliculaId
+  const funcion = funciones.find((f) => f.id === funcionId);
+
+  const pelicula = peliculas.find(
+    (p) => p.id === funcion?.peliculaId
+  );
+
+  try {
+    // El backend crea la compra y realiza las reservas.
+    const respuesta = await fetch(`${API_URL}/compras`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${sesion.token}`,
+      },
+      body: JSON.stringify({
+        medioPago: "efectivo",
+        productos: [],
+        entradas: idsButacas.map((id) => ({
+          funcionButacaId: id,
+        })),
+      }),
+    });
+
+    await verificarRespuesta(
+      respuesta,
+      "No se pudo crear la compra"
     );
 
-    const reservasRealizadas: number[] = [];
-    const vencimientos: number[] = [];
-    let compraId: number | null = null;
+    const datos: RespuestaCrearCompra =
+      await respuesta.json();
 
-    try {
-      // 1. Crear una compra pendiente.
-      const respuestaCompra = await fetch(`${API_URL}/compras`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          usuarioId: USUARIO_PRUEBA_ID,
-          medioPago: "efectivo",
-          total: idsButacas.length * PRECIO_BUTACA,
-        }),
-      });
+    const compra = datos.compra;
 
-      await verificarRespuesta(
-        respuestaCompra,
-        "No se pudo crear la compra"
+    if (
+      !compra ||
+      !Number.isInteger(compra.id) ||
+      compra.id <= 0 ||
+      compra.estado !== "pendiente"
+    ) {
+      throw new Error(
+        "El backend devolvió una compra inválida."
       );
-
-      const compra: Compra = await respuestaCompra.json();
-
-      if (
-        !Number.isInteger(compra.id) ||
-        compra.id <= 0 ||
-        compra.estado !== "pendiente"
-      ) {
-        throw new Error("La compra creada no es válida");
-      }
-
-      compraId = compra.id;
-
-      // 2. Reservar una por una.
-      for (const butacaId of idsButacas) {
-        const respuestaReserva = await fetch(
-          `${API_URL}/funciones/${funcionId}/butacas/${butacaId}/reservar`,
-          {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-            },
-            body: JSON.stringify({ compraId }),
-          }
-        );
-
-        await verificarRespuesta(
-          respuestaReserva,
-          `No se pudo reservar la butaca ${butacaId}`
-        );
-
-        reservasRealizadas.push(butacaId);
-
-        const reserva: Reserva = await respuestaReserva.json();
-        const vencimiento = new Date(reserva.venceEn).getTime();
-
-        if (Number.isFinite(vencimiento)) {
-          vencimientos.push(vencimiento);
-        }
-      }
-
-      // 3. Guardar los datos del comprobante.
-      // Se usa el vencimiento más cercano.
-      const vencimientoMasCercano =
-        vencimientos.length > 0
-          ? new Date(Math.min(...vencimientos)).toISOString()
-          : null;
-
-      setComprobante({
-        compraId,
-        pelicula: pelicula?.titulo ?? "Película",
-        fecha: funcion?.fecha ?? "",
-        hora: funcion?.hora ?? "",
-        sala:
-          funcion?.Sala?.nombre ??
-          `Sala ${funcion?.salaId ?? ""}`,
-        butacas: nombresButacas,
-        total: idsButacas.length * PRECIO_BUTACA,
-        venceEn: vencimientoMasCercano,
-      });
-
-      setButacasSeleccionadas([]);
-    } catch (error) {
-      const motivo =
-        error instanceof Error
-          ? error.message
-          : "Ocurrió un error al reservar";
-
-      const liberacionesFallidas: number[] = [];
-
-      // Intentar revertir las reservas ya realizadas.
-      if (compraId !== null) {
-        for (const butacaId of reservasRealizadas) {
-          try {
-            const respuestaLiberar = await fetch(
-              `${API_URL}/funciones/${funcionId}/butacas/${butacaId}/liberar`,
-              {
-                method: "PATCH",
-                headers: {
-                  "Content-Type": "application/json",
-                },
-                body: JSON.stringify({ compraId }),
-              }
-            );
-
-            await verificarRespuesta(
-              respuestaLiberar,
-              "No se pudo liberar la reserva"
-            );
-          } catch {
-            liberacionesFallidas.push(butacaId);
-          }
-        }
-      }
-
-      let mensaje = motivo;
-
-      if (compraId !== null) {
-        mensaje += ` La compra pendiente #${compraId} quedó creada.`;
-
-        if (liberacionesFallidas.length > 0) {
-          mensaje +=
-            " No se pudieron liberar todas las butacas. " +
-            "Revisá las reservas antes de repetir la operación.";
-        } else if (reservasRealizadas.length > 0) {
-          mensaje +=
-            " Se intentó liberar las reservas realizadas.";
-        }
-      }
-
-      setErrorReserva(mensaje);
-    } finally {
-      try {
-        await actualizarButacas(funcionId);
-        setErrorButacas("");
-      } catch {
-        setErrorButacas(
-          "No se pudo actualizar la disponibilidad. " +
-            "Cerrá y volvé a abrir el mapa antes de reservar."
-        );
-      }
-
-      reservaEnCurso.current = false;
-      setReservando(false);
     }
+
+    const total = Number(compra.total);
+
+    if (!Number.isFinite(total)) {
+      throw new Error(
+        "No se pudo interpretar el total de la compra."
+      );
+    }
+
+    setComprobante({
+      compraId: compra.id,
+      pelicula: pelicula?.titulo ?? "Película",
+      fecha: funcion?.fecha ?? "",
+      hora: funcion?.hora ?? "",
+      sala:
+        funcion?.Sala?.nombre ??
+        `Sala ${funcion?.salaId ?? ""}`,
+      butacas: nombresButacas,
+      total,
+      venceEn: null,
+    });
+
+    setButacasSeleccionadas([]);
+  } catch (error) {
+    setErrorReserva(
+      error instanceof Error
+        ? error.message
+        : "Ocurrió un error al crear la compra."
+    );
+  } finally {
+    try {
+      await actualizarButacas(funcionId);
+      setErrorButacas("");
+    } catch {
+      setErrorButacas(
+        "No se pudo actualizar la disponibilidad. " +
+        "Volvé a abrir el mapa antes de reservar."
+      );
+    }
+
+    reservaEnCurso.current = false;
+    setReservando(false);
   }
+}
+
 
   const filas = [...new Set(butacas.map((b) => b.fila))].sort();
 
@@ -564,16 +510,11 @@ function App() {
                 {comprobante.butacas.join(", ")}
               </p>
               <p>
-                <strong>Total de prueba:</strong>{" "}
+                <strong>Total de la compra:</strong>{" "}
                 {formatearImporte(comprobante.total)}
               </p>
               <p>
-                <strong>Vencimiento:</strong>{" "}
-                {comprobante.venceEn
-                  ? new Date(
-                      comprobante.venceEn
-                    ).toLocaleString("es-AR")
-                  : "Consultar disponibilidad"}
+                <strong>Estado:</strong> Pendiente de pago
               </p>
             </div>
 
