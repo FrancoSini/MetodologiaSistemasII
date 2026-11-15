@@ -221,6 +221,7 @@ button:focus-visible {
   width: 100%;
   min-width: 0;
   padding: 15px 0;
+  overflow-x: auto;
 }
 
 .pantalla-cine {
@@ -239,11 +240,10 @@ button:focus-visible {
 
 .fila-butacas {
   display: grid;
-  grid-template-columns:
-    16px repeat(8, minmax(0, 1fr));
   align-items: center;
   gap: 4px;
-  width: 100%;
+  width: max-content;
+  min-width: 100%;
   margin-bottom: 8px;
 }
 
@@ -634,4 +634,173 @@ button:focus-visible {
   margin-bottom: 0;
   font-size: 13px;
   color: #475569;
+}
+
+/* PANEL DE ADMINISTRACIÓN */
+
+.admin-panel {
+  margin: 28px 0;
+  padding: 28px;
+  background: white;
+  border: 1px solid #dbe3ee;
+  border-radius: 16px;
+}
+
+.admin-encabezado h2 {
+  margin: 0 0 8px;
+  color: #172554;
+}
+
+.admin-encabezado p {
+  margin-bottom: 24px;
+  color: #475569;
+}
+
+.admin-formulario {
+  padding: 24px;
+  background: #f8fafc;
+  border-radius: 12px;
+}
+
+.admin-formulario h3 {
+  margin-top: 0;
+  color: #172554;
+}
+
+.admin-formulario form {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.admin-campos {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+}
+
+.admin-formulario label {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-weight: 600;
+}
+
+.admin-formulario input:not([type="checkbox"]),
+.admin-formulario textarea {
+  width: 100%;
+  box-sizing: border-box;
+  padding: 12px;
+  border: 1px solid #cbd5e1;
+  border-radius: 8px;
+  font: inherit;
+}
+
+.admin-formulario input:focus,
+.admin-formulario textarea:focus {
+  outline: 2px solid #2563eb;
+  outline-offset: 1px;
+}
+
+.admin-formulario .admin-checkbox {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 10px;
+}
+
+.admin-checkbox input {
+  width: 18px;
+  height: 18px;
+}
+
+.admin-boton {
+  padding: 14px;
+  background: #15803d;
+  color: white;
+  border: none;
+  border-radius: 9px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.admin-boton:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.admin-exito {
+  padding: 12px;
+  color: #166534;
+  background: #dcfce7;
+  border-radius: 8px;
+}
+
+.admin-error {
+  padding: 12px;
+  color: #991b1b;
+  background: #fee2e2;
+  border-radius: 8px;
+}
+
+@media (max-width: 650px) {
+  .admin-panel {
+    padding: 16px;
+  }
+
+  .admin-formulario {
+    padding: 16px;
+  }
+
+  .admin-campos {
+    grid-template-columns: 1fr;
+  }
+}
+.admin-formulario select {
+  width: 100%;
+  box-sizing: border-box;
+  padding: 12px;
+  border: 1px solid #cbd5e1;
+  border-radius: 8px;
+  background: white;
+  font: inherit;
+}
+/* LISTADO DE SALAS */
+
+.admin-listado-salas {
+  margin-top: 24px;
+}
+
+.admin-listado-encabezado {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 20px;
+}
+
+.admin-listado-encabezado h3 {
+  margin: 0;
+}
+
+.admin-salas-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 16px;
+}
+
+.admin-sala-card {
+  background: white;
+  border: 1px solid #dbe3ee;
+  border-radius: 12px;
+  padding: 16px;
+}
+
+.admin-sala-card h4 {
+  margin: 0 0 12px;
+  color: #172554;
+}
+
+.admin-sala-card p {
+  margin: 6px 0;
 }

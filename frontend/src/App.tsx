@@ -2,6 +2,9 @@ import { useEffect, useRef, useState } from "react";
 import "./App.css";
 import AuthPanel, { type Sesion } from "./components/AuthPanel";
 import MisEntradas from "./components/MisEntradas";
+import AdminPanel from "./components/AdminPanel";
+import AdminFunciones from "./components/AdminFunciones";
+import AdminSalas from "./components/AdminSalas";
 
 interface Pelicula {
   id: number;
@@ -135,6 +138,10 @@ function App() {
   const pagoEnCurso = useRef(false);
   const [sesion, setSesion] = useState<Sesion | null>(null);
 
+  const [recargaFunciones, setRecargaFunciones] = useState(0);
+
+  const [versionSalas, setVersionSalas] = useState(0);
+
   // Cargar películas.
   useEffect(() => {
     const controller = new AbortController();
@@ -236,7 +243,7 @@ function App() {
     cargarFunciones();
 
     return () => controller.abort();
-  }, [peliculaSeleccionada]);
+  }, [peliculaSeleccionada, recargaFunciones]);
 
   // Mostrar u ocultar el mapa de butacas.
   function verButacas(funcionId: number) {
@@ -321,7 +328,17 @@ function App() {
       anteriores.filter((id) => disponibles.has(id))
     );
   }
+  async function actualizarCartelera() {
+    const respuesta = await fetch(`${API_URL}/peliculas`);
 
+    await verificarRespuesta(
+      respuesta,
+      "No se pudo actualizar la cartelera"
+    );
+
+    const datos: Pelicula[] = await respuesta.json();
+    setPeliculas(datos);
+}
   // Selección visual de butacas.
   function seleccionarButaca(butaca: Butaca) {
     if (reservando || butaca.estado !== "disponible") return;
@@ -534,6 +551,31 @@ function App() {
             setErrorPago("");
           }}
         />
+        {sesion?.rol === "admin" && (
+          <AdminPanel
+            sesion={sesion}
+            onPeliculaCreada={actualizarCartelera}
+          />
+        )}
+        {sesion?.rol === "admin" && (
+  <>
+        <AdminSalas
+          sesion={sesion}
+          onSalaCreada={() => {
+            setVersionSalas((actual) => actual + 1);
+          }}
+        />
+
+        <AdminFunciones
+          key={versionSalas}
+          sesion={sesion}
+          onFuncionCreada={() => {
+            setRecargaFunciones((actual) => actual + 1);
+          }}
+        />
+      </>
+    )}
+        
         {sesion && (
           <MisEntradas
             key={sesion.uid}
@@ -814,6 +856,11 @@ function App() {
                                         <div
                                           className="fila-butacas"
                                           key={fila}
+                                          style={{
+                                            gridTemplateColumns: `16px repeat(${
+                                              butacas.filter((b) => b.fila === fila).length
+                                            }, 36px)`,
+                                          }}
                                         >
                                           <span className="letra-fila">
                                             {fila}
