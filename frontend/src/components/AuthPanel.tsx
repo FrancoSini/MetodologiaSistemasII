@@ -3,10 +3,13 @@ import { useState, type FormEvent } from "react";
 
 const API_URL = "http://localhost:3001/api";
 
+export type RolUsuario = "admin" | "cliente";
+
 export interface Sesion {
   uid: number;
   token: string;
   nombre: string;
+  rol: RolUsuario;
 }
 
 interface Props {
@@ -19,6 +22,8 @@ interface RespuestaAuth {
   ok: boolean;
   uid?: number;
   token?: string;
+  nombre?: string;
+  rol?: RolUsuario;
   msg?: string;
   error?: { mensaje?: string };
 }
@@ -35,8 +40,11 @@ export default function AuthPanel({
   const [cargando, setCargando] = useState(false);
   const [error, setError] = useState("");
 
-  async function enviarFormulario(evento: FormEvent<HTMLFormElement>) {
+  async function enviarFormulario(
+    evento: FormEvent<HTMLFormElement>
+  ) {
     evento.preventDefault();
+
     if (cargando) return;
 
     setCargando(true);
@@ -50,10 +58,12 @@ export default function AuthPanel({
         `${API_URL}/autenticacion/${endpoint}`,
         {
           method: "POST",
-          headers: { "Content-Type": "application/json" },
+          headers: {
+            "Content-Type": "application/json",
+          },
           body: JSON.stringify(
             modo === "registro"
-              ? { nombre, email, password, rol: "cliente" }
+              ? { nombre, email, password }
               : { email, password }
           ),
         }
@@ -69,15 +79,27 @@ export default function AuthPanel({
       ) {
         throw new Error(
           datos.msg ??
-          datos.error?.mensaje ??
-          "No se pudo iniciar sesión"
+            datos.error?.mensaje ??
+            "No se pudo iniciar sesión"
+        );
+      }
+
+      if (
+        datos.rol !== "cliente" &&
+        datos.rol !== "admin"
+      ) {
+        throw new Error(
+          "El servidor no devolvió un rol válido"
         );
       }
 
       onAutenticado({
         uid: datos.uid!,
         token: datos.token,
-        nombre: modo === "registro" ? nombre : email,
+        nombre:
+          datos.nombre ??
+          (modo === "registro" ? nombre : email),
+        rol: datos.rol,
       });
 
       setPassword("");
@@ -96,9 +118,19 @@ export default function AuthPanel({
     return (
       <section className="auth-panel">
         <h2>Mi cuenta</h2>
+
         <p>
-          Sesión iniciada como <strong>{sesion.nombre}</strong>
+          Sesión iniciada como{" "}
+          <strong>{sesion.nombre}</strong>
         </p>
+
+        <p>
+          <strong>Tipo de usuario:</strong>{" "}
+          {sesion.rol === "admin"
+            ? "Administrador"
+            : "Cliente"}
+        </p>
+
         <button
           type="button"
           className="auth-boton"
@@ -113,17 +145,24 @@ export default function AuthPanel({
   return (
     <section className="auth-panel">
       <h2>
-        {modo === "login" ? "Iniciar sesión" : "Crear cuenta"}
+        {modo === "login"
+          ? "Iniciar sesión"
+          : "Crear cuenta"}
       </h2>
 
-      <form onSubmit={enviarFormulario} className="auth-form">
+      <form
+        onSubmit={enviarFormulario}
+        className="auth-form"
+      >
         {modo === "registro" && (
           <label>
             Nombre
             <input
               type="text"
               value={nombre}
-              onChange={(e) => setNombre(e.target.value)}
+              onChange={(e) =>
+                setNombre(e.target.value)
+              }
               required
               maxLength={100}
             />
@@ -135,7 +174,9 @@ export default function AuthPanel({
           <input
             type="email"
             value={email}
-            onChange={(e) => setEmail(e.target.value)}
+            onChange={(e) =>
+              setEmail(e.target.value)
+            }
             required
           />
         </label>
@@ -145,14 +186,19 @@ export default function AuthPanel({
           <input
             type="password"
             value={password}
-            onChange={(e) => setPassword(e.target.value)}
+            onChange={(e) =>
+              setPassword(e.target.value)
+            }
             required
             minLength={6}
           />
         </label>
 
         {error && (
-          <p className="auth-error" role="alert">
+          <p
+            className="auth-error"
+            role="alert"
+          >
             {error}
           </p>
         )}
@@ -174,7 +220,11 @@ export default function AuthPanel({
         type="button"
         className="auth-cambiar"
         onClick={() => {
-          setModo(modo === "login" ? "registro" : "login");
+          setModo(
+            modo === "login"
+              ? "registro"
+              : "login"
+          );
           setError("");
         }}
       >
