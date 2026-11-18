@@ -5,6 +5,8 @@ import MisEntradas from "./components/MisEntradas";
 import AdminPanel from "./components/AdminPanel";
 import AdminFunciones from "./components/AdminFunciones";
 import AdminSalas from "./components/AdminSalas";
+import CandyBar from "./components/CandyBar";
+import AdminCandyBar from "./components/AdminCandyBar"; 
 
 interface Pelicula {
   id: number;
@@ -141,6 +143,7 @@ function App() {
   const [recargaFunciones, setRecargaFunciones] = useState(0);
 
   const [versionSalas, setVersionSalas] = useState(0);
+  const [versionProductos, setVersionProductos] = useState(0);
 
   // Cargar películas.
   useEffect(() => {
@@ -558,24 +561,31 @@ function App() {
           />
         )}
         {sesion?.rol === "admin" && (
-  <>
-        <AdminSalas
-          sesion={sesion}
-          onSalaCreada={() => {
-            setVersionSalas((actual) => actual + 1);
-          }}
-        />
+          <>
+            <AdminSalas
+              sesion={sesion}
+              onSalaCreada={() => {
+                setVersionSalas((actual) => actual + 1);
+              }}
+            />
 
-        <AdminFunciones
-          key={versionSalas}
-          sesion={sesion}
-          onFuncionCreada={() => {
-            setRecargaFunciones((actual) => actual + 1);
-          }}
-        />
-      </>
-    )}
-        
+            <AdminFunciones
+              key={versionSalas}
+              sesion={sesion}
+              onFuncionCreada={() => {
+                setRecargaFunciones((actual) => actual + 1);
+              }}
+            />
+
+            <AdminCandyBar
+              sesion={sesion}
+              onProductoCreado={() => {
+                setVersionProductos((actual) => actual + 1);
+              }}
+            />
+          </>
+        )}
+
         {sesion && (
           <MisEntradas
             key={sesion.uid}
@@ -587,6 +597,7 @@ function App() {
             }
           />
         )}
+        <CandyBar key={versionProductos} />
         <h2>Cartelera de películas</h2>
 
         {/* COMPROBANTE DE RESERVA PENDIENTE */}

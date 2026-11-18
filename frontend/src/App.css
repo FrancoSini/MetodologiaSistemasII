@@ -804,3 +804,46 @@ button:focus-visible {
 .admin-sala-card p {
   margin: 6px 0;
 }
+
+/* Candy Bar */
+
+.candy-bar {
+  margin: 24px 0 36px;
+  padding: 24px;
+  background: #fff;
+  border-radius: 12px;
+  box-shadow: 0 3px 12px rgba(0, 0, 0, 0.08);
+}
+
+.candy-bar h2 {
+  margin-bottom: 8px;
+}
+
+.candy-bar-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 16px;
+  margin-top: 24px;
+}
+
+.candy-bar-card {
+  padding: 18px;
+  background: #f8fafc;
+  border: 1px solid #e5e7eb;
+  border-radius: 10px;
+}
+
+.candy-bar-card h3 {
+  color: #172554;
+  margin: 12px 0;
+}
+
+.candy-bar-precio {
+  font-size: 1.25rem;
+  font-weight: bold;
+  color: #166534;
+}
+
+.candy-bar-error {
+  color: #b91c1c;
+}
