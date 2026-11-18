@@ -1,7 +1,10 @@
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
+import type { Sesion } from "./AuthPanel";
 
 const API_URL = "http://localhost:3001/api";
+
+type MedioPago = "efectivo" | "debito" | "credito";
 
 interface Producto {
   id: number;
@@ -16,30 +19,90 @@ interface ItemCarrito {
   cantidad: number;
 }
 
-export default function CandyBar() {
+interface Compra {
+  id: number;
+  estado: string;
+  total: number | string;
+}
+
+interface RespuestaCrearCompra {
+  mensaje: string;
+  compra: Compra;
+}
+
+interface RespuestaPago {
+  aprobado: boolean;
+  mensaje: string;
+  compra: Compra;
+}
+
+interface Props {
+  sesion: Sesion | null;
+}
+
+async function leerRespuesta<T>(respuesta: Response): Promise<T> {
+  const datos: unknown = await respuesta.json();
+
+  if (!respuesta.ok) {
+    const error = datos as {
+      mensaje?: string;
+      msg?: string;
+      error?: { mensaje?: string };
+    };
+
+    throw new Error(
+      error?.error?.mensaje ??
+        error?.mensaje ??
+        error?.msg ??
+        `Error del servidor (${respuesta.status})`
+    );
+  }
+
+  return datos as T;
+}
+
+function formatearPrecio(valor: number): string {
+  return valor.toLocaleString("es-AR", {
+    style: "currency",
+    currency: "ARS",
+  });
+}
+
+export default function CandyBar({ sesion }: Props) {
   const [productos, setProductos] = useState<Producto[]>([]);
   const [carrito, setCarrito] = useState<ItemCarrito[]>([]);
+  const [medioPago, setMedioPago] =
+    useState<MedioPago>("efectivo");
+
   const [cargando, setCargando] = useState(true);
+  const [procesando, setProcesando] = useState(false);
   const [error, setError] = useState("");
+  const [mensaje, setMensaje] = useState("");
+
+  const [compraPendiente, setCompraPendiente] =
+    useState<Compra | null>(null);
+
+  const [compraConfirmada, setCompraConfirmada] =
+    useState<Compra | null>(null);
+
   const [recarga, setRecarga] = useState(0);
+
+  // Evita dos solicitudes simultáneas por doble clic.
+  const operacionEnCurso = useRef(false);
 
   useEffect(() => {
     const controller = new AbortController();
 
     async function cargarProductos() {
       setCargando(true);
-      setError("");
 
       try {
-        const respuesta = await fetch(`${API_URL}/productos`, {
-          signal: controller.signal,
-        });
+        const respuesta = await fetch(
+          `${API_URL}/productos`,
+          { signal: controller.signal }
+        );
 
-        if (!respuesta.ok) {
-          throw new Error("No se pudieron cargar los productos.");
-        }
-
-        const datos: Producto[] = await respuesta.json();
+        const datos = await leerRespuesta<Producto[]>(respuesta);
 
         if (!controller.signal.aborted) {
           setProductos(datos);
@@ -49,7 +112,7 @@ export default function CandyBar() {
           setError(
             err instanceof Error
               ? err.message
-              : "Error inesperado al cargar productos."
+              : "No se pudieron cargar los productos."
           );
         }
       } finally {
@@ -65,7 +128,12 @@ export default function CandyBar() {
   }, [recarga]);
 
   function agregarAlCarrito(producto: Producto) {
-    if (producto.stock <= 0) return;
+    if (compraPendiente || procesando || producto.stock <= 0) {
+      return;
+    }
+
+    setCompraConfirmada(null);
+    setMensaje("");
 
     setCarrito((anterior) => {
       const existente = anterior.find(
@@ -92,6 +160,8 @@ export default function CandyBar() {
   }
 
   function disminuirCantidad(productoId: number) {
+    if (compraPendiente || procesando) return;
+
     setCarrito((anterior) =>
       anterior
         .map((item) =>
@@ -104,12 +174,15 @@ export default function CandyBar() {
   }
 
   function quitarDelCarrito(productoId: number) {
+    if (compraPendiente || procesando) return;
+
     setCarrito((anterior) =>
-      anterior.filter((item) => item.productoId !== productoId)
+      anterior.filter(
+        (item) => item.productoId !== productoId
+      )
     );
   }
 
-  // Solo se consideran productos que siguen existiendo.
   const itemsCarrito = carrito.flatMap((item) => {
     const producto = productos.find(
       (p) => p.id === item.productoId
@@ -117,35 +190,148 @@ export default function CandyBar() {
 
     if (!producto) return [];
 
-    return [{
-      producto,
-      cantidad: item.cantidad,
-    }];
+    return [{ producto, cantidad: item.cantidad }];
   });
 
   const total = itemsCarrito.reduce(
-    (acumulado, item) =>
-      acumulado + Number(item.producto.precio) * item.cantidad,
+    (acumulado, { producto, cantidad }) =>
+      acumulado + Number(producto.precio) * cantidad,
     0
   );
 
-  const carritoValido = itemsCarrito.every(
-    ({ producto, cantidad }) =>
-      Number.isInteger(cantidad) &&
-      cantidad > 0 &&
-      cantidad <= producto.stock &&
-      Number.isFinite(Number(producto.precio))
-  );
+  const carritoValido =
+    carrito.length > 0 &&
+    itemsCarrito.length === carrito.length &&
+    itemsCarrito.every(
+      ({ producto, cantidad }) =>
+        Number.isInteger(cantidad) &&
+        cantidad > 0 &&
+        cantidad <= producto.stock &&
+        Number.isFinite(Number(producto.precio)) &&
+        Number(producto.precio) >= 0
+    );
 
-  const cantidadesValidas =
-    carritoValido &&
-    itemsCarrito.length === carrito.length;
+  async function crearCompra(): Promise<void> {
+    if (
+      !sesion ||
+      sesion.rol !== "cliente" ||
+      !carritoValido ||
+      compraPendiente ||
+      operacionEnCurso.current
+    ) {
+      return;
+    }
 
-  function formatearPrecio(valor: number) {
-    return valor.toLocaleString("es-AR", {
-      style: "currency",
-      currency: "ARS",
-    });
+    operacionEnCurso.current = true;
+    setProcesando(true);
+    setError("");
+    setMensaje("");
+    setCompraConfirmada(null);
+
+    try {
+      const respuesta = await fetch(`${API_URL}/compras`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${sesion.token}`,
+        },
+        body: JSON.stringify({
+          medioPago,
+          productos: carrito.map((item) => ({
+            productoId: item.productoId,
+            cantidad: item.cantidad,
+          })),
+          entradas: [],
+        }),
+      });
+
+      const datos =
+        await leerRespuesta<RespuestaCrearCompra>(respuesta);
+
+      if (!Number.isInteger(datos.compra?.id)) {
+        throw new Error(
+          "El servidor no devolvió un identificador de compra válido."
+        );
+      }
+
+      setCompraPendiente(datos.compra);
+      setMensaje(
+        `Compra #${datos.compra.id} creada. ` +
+          "Está pendiente de pago."
+      );
+    } catch (err) {
+      setError(
+        err instanceof Error
+          ? err.message
+          : "No se pudo crear la compra."
+      );
+    } finally {
+      operacionEnCurso.current = false;
+      setProcesando(false);
+    }
+  }
+
+  async function pagarCompra(
+    simularRechazo: boolean
+  ): Promise<void> {
+    if (
+      !sesion ||
+      !compraPendiente ||
+      operacionEnCurso.current
+    ) {
+      return;
+    }
+
+    operacionEnCurso.current = true;
+    setProcesando(true);
+    setError("");
+    setMensaje("");
+
+    try {
+      const respuesta = await fetch(
+        `${API_URL}/compras/${compraPendiente.id}/pagar`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${sesion.token}`,
+          },
+          body: JSON.stringify({ simularRechazo }),
+        }
+      );
+
+      const datos =
+        await leerRespuesta<RespuestaPago>(respuesta);
+
+      if (datos.aprobado) {
+        setCompraConfirmada(datos.compra);
+        setCompraPendiente(null);
+        setCarrito([]);
+        setMensaje(
+          `¡Pago aprobado! Compra #${datos.compra.id} confirmada.`
+        );
+        setRecarga((actual) => actual + 1);
+      } else {
+        // El backend cancela la compra rechazada.
+        // Permitimos que el cliente cree otra si quiere.
+        setCompraPendiente(null);
+        setMensaje(
+          `${datos.mensaje}. La compra fue cancelada.`
+        );
+        setRecarga((actual) => actual + 1);
+      }
+    } catch (err) {
+      // Conservamos el ID pendiente: no creamos otra
+      // compra automáticamente al fallar una solicitud.
+      setError(
+        err instanceof Error
+          ? err.message
+          : "No se pudo procesar el pago."
+      );
+    } finally {
+      operacionEnCurso.current = false;
+      setProcesando(false);
+    }
   }
 
   return (
@@ -156,8 +342,11 @@ export default function CandyBar() {
       <button
         type="button"
         className="candy-actualizar"
-        onClick={() => setRecarga((actual) => actual + 1)}
-        disabled={cargando}
+        onClick={() => {
+          setError("");
+          setRecarga((actual) => actual + 1);
+        }}
+        disabled={cargando || procesando}
       >
         Actualizar productos
       </button>
@@ -170,55 +359,64 @@ export default function CandyBar() {
         </p>
       )}
 
-      {!cargando && !error && productos.length === 0 && (
+      {mensaje && (
+        <p role="status" aria-live="polite">
+          {mensaje}
+        </p>
+      )}
+
+      {!cargando && productos.length === 0 && !error && (
         <p>No hay productos disponibles.</p>
       )}
 
-      {!error && (
-        <div className="candy-bar-grid">
-          {productos.map((producto) => {
-            const cantidadEnCarrito =
-              carrito.find(
-                (item) => item.productoId === producto.id
-              )?.cantidad ?? 0;
+      <div className="candy-bar-grid">
+        {productos.map((producto) => {
+          const cantidadEnCarrito =
+            carrito.find(
+              (item) => item.productoId === producto.id
+            )?.cantidad ?? 0;
 
-            const disponible =
-              producto.stock > 0 &&
-              cantidadEnCarrito < producto.stock;
+          const disponible =
+            producto.stock > 0 &&
+            cantidadEnCarrito < producto.stock;
 
-            return (
-              <article
-                key={producto.id}
-                className="candy-bar-card"
+          return (
+            <article
+              key={producto.id}
+              className="candy-bar-card"
+            >
+              <span>{producto.categoria}</span>
+              <h3>{producto.nombre}</h3>
+
+              <p className="candy-bar-precio">
+                {formatearPrecio(Number(producto.precio))}
+              </p>
+
+              <p>
+                {producto.stock > 0
+                  ? `Stock: ${producto.stock}`
+                  : "Sin stock"}
+              </p>
+
+              <button
+                type="button"
+                className="candy-agregar"
+                disabled={
+                  !disponible ||
+                  cargando ||
+                  procesando ||
+                  compraPendiente !== null
+                }
+                onClick={() => agregarAlCarrito(producto)}
               >
-                <span>{producto.categoria}</span>
-                <h3>{producto.nombre}</h3>
-
-                <p className="candy-bar-precio">
-                  {formatearPrecio(Number(producto.precio))}
-                </p>
-
-                <p>
-                  {producto.stock > 0
-                    ? `Stock: ${producto.stock}`
-                    : "Sin stock"}
-                </p>
-
-                <button
-                  type="button"
-                  className="candy-agregar"
-                  disabled={!disponible || cargando}
-                  onClick={() => agregarAlCarrito(producto)}
-                >
-                  {disponible
-                    ? "Agregar al carrito"
-                    : "Sin disponibilidad"}
-                </button>
-              </article>
-            );
-          })}
-        </div>
-      )}
+                {disponible
+                  ? "Agregar al carrito"
+                  : "Sin disponibilidad"}
+              </button>
+            </article>
+          );
+        })}
+      </div>
 
       <div className="candy-carrito">
         <h3>🛒 Mi carrito</h3>
@@ -244,6 +442,7 @@ export default function CandyBar() {
                 <div className="candy-controles">
                   <button
                     type="button"
+                    disabled={!!compraPendiente || procesando}
                     onClick={() =>
                       disminuirCantidad(producto.id)
                     }
@@ -257,7 +456,9 @@ export default function CandyBar() {
                   <button
                     type="button"
                     disabled={
-                      cantidad >= producto.stock || cargando
+                      !!compraPendiente ||
+                      procesando ||
+                      cantidad >= producto.stock
                     }
                     onClick={() => agregarAlCarrito(producto)}
                     aria-label={`Aumentar ${producto.nombre}`}
@@ -268,6 +469,7 @@ export default function CandyBar() {
                   <button
                     type="button"
                     className="candy-quitar"
+                    disabled={!!compraPendiente || procesando}
                     onClick={() =>
                       quitarDelCarrito(producto.id)
                     }
@@ -278,33 +480,127 @@ export default function CandyBar() {
               </div>
             ))}
 
-            {!cantidadesValidas && (
-              <p className="candy-bar-error" role="alert">
-                El carrito contiene cantidades sin stock
-                suficiente o productos que ya no existen.
-                Revisá las cantidades antes de comprar.
-              </p>
-            )}
-
             <div className="candy-total">
               <strong>Total estimado:</strong>
               <strong>{formatearPrecio(total)}</strong>
             </div>
 
             <p className="candy-aviso">
-              El total definitivo y el stock disponible
-              serán verificados por el backend al comprar.
+              El backend verifica el precio y el stock
+              al registrar y confirmar la compra.
+            </p>
+
+            {!sesion && (
+              <p>
+                Iniciá sesión como cliente para comprar
+                productos del Candy Bar.
+              </p>
+            )}
+
+            {sesion?.rol === "admin" && (
+              <p>
+                Para realizar una compra, ingresá con una
+                cuenta de cliente.
+              </p>
+            )}
+
+            {sesion?.rol === "cliente" &&
+              !compraPendiente && (
+                <>
+                  <label htmlFor="candy-medio-pago">
+                    Medio de pago
+                  </label>
+
+                  <select
+                    id="candy-medio-pago"
+                    value={medioPago}
+                    disabled={procesando}
+                    onChange={(evento) =>
+                      setMedioPago(
+                        evento.target.value as MedioPago
+                      )
+                    }
+                  >
+                    <option value="efectivo">Efectivo</option>
+                    <option value="debito">Débito</option>
+                    <option value="credito">Crédito</option>
+                  </select>
+
+                  <button
+                    type="button"
+                    className="candy-comprar"
+                    disabled={
+                      !carritoValido ||
+                      cargando ||
+                      procesando
+                    }
+                    onClick={() => void crearCompra()}
+                  >
+                    {procesando
+                      ? "Procesando..."
+                      : "Crear compra"}
+                  </button>
+                </>
+              )}
+          </>
+        )}
+
+        {compraPendiente && (
+          <div className="candy-pago">
+            <h4>
+              Compra #{compraPendiente.id} pendiente de pago
+            </h4>
+
+            <p>
+              Total registrado:{" "}
+              <strong>
+                {formatearPrecio(
+                  Number(compraPendiente.total)
+                )}
+              </strong>
+            </p>
+
+            <p>
+              La selección queda bloqueada mientras
+              esta compra esté pendiente.
             </p>
 
             <button
               type="button"
               className="candy-comprar"
-              disabled
-              title="El pago se habilitará en el siguiente paso"
+              disabled={procesando}
+              onClick={() => void pagarCompra(false)}
             >
-              Comprar (próximamente)
+              {procesando
+                ? "Procesando..."
+                : "Confirmar pago simulado"}
             </button>
-          </>
+
+            {import.meta.env.DEV && (
+              <button
+                type="button"
+                className="candy-actualizar"
+                disabled={procesando}
+                onClick={() => void pagarCompra(true)}
+              >
+                Simular pago rechazado
+              </button>
+            )}
+          </div>
+        )}
+
+        {compraConfirmada && (
+          <div className="candy-confirmacion">
+            <h4>
+              Compra #{compraConfirmada.id} confirmada
+            </h4>
+            <p>
+              Total pagado:{" "}
+              {formatearPrecio(
+                Number(compraConfirmada.total)
+              )}
+            </p>
+          </div>
         )}
       </div>
     </section>

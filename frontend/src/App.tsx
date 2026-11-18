@@ -597,9 +597,11 @@ function App() {
             }
           />
         )}
-        <CandyBar key={versionProductos} />
+        <CandyBar
+            key={`${sesion?.uid ?? "invitado"}-${versionProductos}`}
+            sesion={sesion}     
+        />
         <h2>Cartelera de películas</h2>
-
         {/* COMPROBANTE DE RESERVA PENDIENTE */}
         {comprobante && (
           <section className="comprobante" aria-live="polite">

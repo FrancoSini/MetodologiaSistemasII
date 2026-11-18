@@ -937,3 +937,43 @@ button:focus-visible {
     flex-wrap: wrap;
   }
 }
+
+/* Confirmación de compra del Candy Bar */
+
+.candy-pago,
+.candy-confirmacion {
+  margin-top: 20px;
+  padding: 18px;
+  border: 1px solid #cbd5e1;
+  border-radius: 10px;
+  background: #f1f5f9;
+}
+
+.candy-pago h4,
+.candy-confirmacion h4 {
+  margin-top: 0;
+}
+
+.candy-confirmacion {
+  border-color: #86efac;
+  background: #f0fdf4;
+}
+
+#candy-medio-pago {
+  display: block;
+  width: 100%;
+  max-width: 300px;
+  margin-top: 8px;
+  padding: 10px;
+  border-radius: 8px;
+  border: 1px solid #cbd5e1;
+}
+
+.candy-pago button {
+  margin-top: 12px;
+}
+
+.candy-bar-error {
+  color: #b91c1c;
+  font-weight: 600;
+}
