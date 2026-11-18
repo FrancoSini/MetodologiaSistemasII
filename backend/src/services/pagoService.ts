@@ -3,12 +3,15 @@ import { randomUUID } from "crypto";
 import sequelize from "../config/database";
 import {
   Compra,
+  CompraProducto,
+  Producto,
   ReservaButaca,
   FuncionButaca,
 } from "../models";
 import { PaymentFactory } from "./pagos/PaymentFactory";
 import { emitirEntrada } from "./entradaService";
 import { AppError } from "../utils/AppError";
+import type { Transaction } from "sequelize";
 
 interface ProcesarPagoDatos {
   compraId: number;
@@ -16,8 +19,100 @@ interface ProcesarPagoDatos {
   simularRechazo?: boolean;
 }
 
-export async function procesarPago(datos: ProcesarPagoDatos) {
-  const { compraId, usuarioId, simularRechazo = false } = datos;
+interface DescuentoStock {
+  producto: Producto;
+  cantidad: number;
+}
+
+// Verifica el stock actual y bloquea los productos
+// involucrados durante la transacción.
+async function prepararDescuentoStock(
+  compraId: number,
+  transaction: Transaction
+): Promise<DescuentoStock[]> {
+  const detalles = await CompraProducto.findAll({
+    where: { compraId },
+    transaction,
+  });
+
+  // Agrupamos cantidades por producto para evitar
+  // validaciones incorrectas si hay líneas repetidas.
+  const cantidades = new Map<number, number>();
+
+  for (const detalle of detalles) {
+    if (
+      !Number.isInteger(detalle.cantidad) ||
+      detalle.cantidad <= 0
+    ) {
+      throw new AppError(
+        "Cantidad de producto inválida",
+        400
+      );
+    }
+
+    cantidades.set(
+      detalle.productoId,
+      (cantidades.get(detalle.productoId) ?? 0) +
+        detalle.cantidad
+    );
+  }
+
+  const descuentos: DescuentoStock[] = [];
+
+  // Orden consistente de bloqueos.
+  const productosIds = [...cantidades.keys()].sort(
+    (a, b) => a - b
+  );
+
+  for (const productoId of productosIds) {
+    const producto = await Producto.findByPk(productoId, {
+      transaction,
+      lock: transaction.LOCK.UPDATE,
+    });
+
+    if (!producto) {
+      throw new AppError(
+        `Producto ${productoId} no encontrado`,
+        404
+      );
+    }
+
+    const cantidad = cantidades.get(productoId)!;
+
+    if (producto.stock < cantidad) {
+      throw new AppError(
+        `Stock insuficiente para ${producto.nombre}`,
+        409
+      );
+    }
+
+    descuentos.push({ producto, cantidad });
+  }
+
+  return descuentos;
+}
+
+// Descuenta las existencias dentro de la transacción.
+async function descontarStock(
+  descuentos: DescuentoStock[],
+  transaction: Transaction
+): Promise<void> {
+  for (const { producto, cantidad } of descuentos) {
+    await producto.update(
+      { stock: producto.stock - cantidad },
+      { transaction }
+    );
+  }
+}
+
+export async function procesarPago(
+  datos: ProcesarPagoDatos
+) {
+  const {
+    compraId,
+    usuarioId,
+    simularRechazo = false,
+  } = datos;
 
   if (!Number.isInteger(compraId) || compraId <= 0) {
     throw new AppError("ID de compra inválido", 400);
@@ -27,10 +122,14 @@ export async function procesarPago(datos: ProcesarPagoDatos) {
     throw new AppError("Usuario inválido", 400);
   }
 
-  // La simulación de rechazo solamente está permitida
-  // en entornos distintos de producción.
-  if (simularRechazo && process.env.NODE_ENV === "production") {
-    throw new AppError("No se puede simular un rechazo en producción", 403);
+  if (
+    simularRechazo &&
+    process.env.NODE_ENV === "production"
+  ) {
+    throw new AppError(
+      "No se puede simular un rechazo en producción",
+      403
+    );
   }
 
   return sequelize.transaction(async (t) => {
@@ -45,20 +144,31 @@ export async function procesarPago(datos: ProcesarPagoDatos) {
     }
 
     if (compra.estado !== "pendiente") {
-      throw new AppError("La compra no está pendiente de pago", 409);
+      throw new AppError(
+        "La compra no está pendiente de pago",
+        409
+      );
     }
 
-    // Seleccionamos la estrategia según el medio de pago.
-    const estrategia = PaymentFactory.obtenerEstrategia(compra.medioPago);
+    // Validamos la disponibilidad actual antes de
+    // procesar un pago potencialmente aprobado.
+    // El bloqueo permanece hasta terminar la transacción.
+    const descuentos = await prepararDescuentoStock(
+      compra.id,
+      t
+    );
+
+    const estrategia = PaymentFactory.obtenerEstrategia(
+      compra.medioPago
+    );
 
     const resultadoPago = await estrategia.procesarPago(
       Number(compra.total),
       simularRechazo
     );
 
-    // Si el pago es rechazado, cancelamos la compra
-    // y liberamos las reservas de sus butacas.
     if (!resultadoPago.aprobado) {
+      // Se rechaza el pago sin descontar productos.
       const reservas = await ReservaButaca.findAll({
         where: {
           compraId: compra.id,
@@ -71,20 +181,26 @@ export async function procesarPago(datos: ProcesarPagoDatos) {
       const ahora = new Date();
 
       for (const reserva of reservas) {
-        const funcionButaca = await FuncionButaca.findByPk(
-          reserva.funcionButacaId,
-          {
-            transaction: t,
-            lock: t.LOCK.UPDATE,
-          }
-        );
+        const funcionButaca =
+          await FuncionButaca.findByPk(
+            reserva.funcionButacaId,
+            {
+              transaction: t,
+              lock: t.LOCK.UPDATE,
+            }
+          );
 
         reserva.estado =
-          reserva.venceEn <= ahora ? "vencida" : "liberada";
+          reserva.venceEn <= ahora
+            ? "vencida"
+            : "liberada";
 
         await reserva.save({ transaction: t });
 
-        if (funcionButaca && funcionButaca.estado === "reservada") {
+        if (
+          funcionButaca &&
+          funcionButaca.estado === "reservada"
+        ) {
           await funcionButaca.update(
             { estado: "disponible" },
             { transaction: t }
@@ -104,13 +220,16 @@ export async function procesarPago(datos: ProcesarPagoDatos) {
       };
     }
 
-    // Si el pago se aprueba, confirmamos la compra.
+    // Pago aprobado: descontamos productos y
+    // confirmamos la compra en la misma transacción.
+    await descontarStock(descuentos, t);
+
     await compra.update(
       { estado: "confirmada" },
       { transaction: t }
     );
 
-    // Recuperamos las reservas activas para emitir las entradas.
+    // Conservamos el flujo existente de entradas.
     const reservas = await ReservaButaca.findAll({
       where: {
         compraId: compra.id,
@@ -120,7 +239,6 @@ export async function procesarPago(datos: ProcesarPagoDatos) {
       lock: t.LOCK.UPDATE,
     });
 
-    // Cada entrada se emite dentro de la misma transacción.
     for (const reserva of reservas) {
       await emitirEntrada(
         {
@@ -140,5 +258,3 @@ export async function procesarPago(datos: ProcesarPagoDatos) {
     };
   });
 }
-
-

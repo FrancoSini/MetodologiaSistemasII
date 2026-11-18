@@ -804,3 +804,176 @@ button:focus-visible {
 .admin-sala-card p {
   margin: 6px 0;
 }
+
+/* Candy Bar */
+
+.candy-bar {
+  margin: 24px 0 36px;
+  padding: 24px;
+  background: #fff;
+  border-radius: 12px;
+  box-shadow: 0 3px 12px rgba(0, 0, 0, 0.08);
+}
+
+.candy-bar h2 {
+  margin-bottom: 8px;
+}
+
+.candy-bar-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 16px;
+  margin-top: 24px;
+}
+
+.candy-bar-card {
+  padding: 18px;
+  background: #f8fafc;
+  border: 1px solid #e5e7eb;
+  border-radius: 10px;
+}
+
+.candy-bar-card h3 {
+  color: #172554;
+  margin: 12px 0;
+}
+
+.candy-bar-precio {
+  font-size: 1.25rem;
+  font-weight: bold;
+  color: #166534;
+}
+
+.candy-bar-error {
+  color: #b91c1c;
+}
+
+/* Carrito del Candy Bar */
+
+.candy-agregar,
+.candy-actualizar,
+.candy-comprar {
+  padding: 12px 18px;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  font-weight: 600;
+}
+
+.candy-agregar,
+.candy-comprar {
+  background: #17803d;
+  color: white;
+  width: 100%;
+  margin-top: 12px;
+}
+
+.candy-actualizar {
+  background: #2454df;
+  color: white;
+  margin-top: 10px;
+}
+
+.candy-agregar:disabled,
+.candy-comprar:disabled {
+  background: #9ca3af;
+  cursor: not-allowed;
+}
+
+.candy-carrito {
+  margin-top: 32px;
+  padding: 24px;
+  border-radius: 12px;
+  background: #f8fafc;
+}
+
+.candy-carrito-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 16px 0;
+  border-bottom: 1px solid #dbe2ea;
+}
+
+.candy-controles {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.candy-controles button {
+  padding: 8px 12px;
+  border: 1px solid #cbd5e1;
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+.candy-quitar {
+  background: #fee2e2;
+  color: #991b1b;
+}
+
+.candy-total {
+  display: flex;
+  justify-content: space-between;
+  margin-top: 24px;
+  font-size: 1.25rem;
+}
+
+.candy-aviso {
+  margin-top: 12px;
+  font-size: 0.9rem;
+  color: #64748b;
+}
+
+@media (max-width: 600px) {
+  .candy-carrito-item {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .candy-controles {
+    flex-wrap: wrap;
+  }
+}
+
+/* Confirmación de compra del Candy Bar */
+
+.candy-pago,
+.candy-confirmacion {
+  margin-top: 20px;
+  padding: 18px;
+  border: 1px solid #cbd5e1;
+  border-radius: 10px;
+  background: #f1f5f9;
+}
+
+.candy-pago h4,
+.candy-confirmacion h4 {
+  margin-top: 0;
+}
+
+.candy-confirmacion {
+  border-color: #86efac;
+  background: #f0fdf4;
+}
+
+#candy-medio-pago {
+  display: block;
+  width: 100%;
+  max-width: 300px;
+  margin-top: 8px;
+  padding: 10px;
+  border-radius: 8px;
+  border: 1px solid #cbd5e1;
+}
+
+.candy-pago button {
+  margin-top: 12px;
+}
+
+.candy-bar-error {
+  color: #b91c1c;
+  font-weight: 600;
+}

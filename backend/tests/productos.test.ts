@@ -121,7 +121,11 @@ describe("Candy Bar — Validación y reglas de negocio de Productos", () => {
 
         const sequelize = (await import("../src/config/database")).default;
         vi.spyOn(sequelize, "transaction").mockImplementation(
-            async (cb: any) => cb({})
+            async (cb: any) => cb({
+                LOCK:{
+                    UPDATE: "UPDATE",
+                },
+            })
         );
         vi.spyOn(Producto, "findByPk").mockResolvedValue(productoMock);
         vi.spyOn(CompraProducto, "count").mockResolvedValue(3);
