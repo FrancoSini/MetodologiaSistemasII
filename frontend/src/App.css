@@ -847,3 +847,93 @@ button:focus-visible {
 .candy-bar-error {
   color: #b91c1c;
 }
+
+/* Carrito del Candy Bar */
+
+.candy-agregar,
+.candy-actualizar,
+.candy-comprar {
+  padding: 12px 18px;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  font-weight: 600;
+}
+
+.candy-agregar,
+.candy-comprar {
+  background: #17803d;
+  color: white;
+  width: 100%;
+  margin-top: 12px;
+}
+
+.candy-actualizar {
+  background: #2454df;
+  color: white;
+  margin-top: 10px;
+}
+
+.candy-agregar:disabled,
+.candy-comprar:disabled {
+  background: #9ca3af;
+  cursor: not-allowed;
+}
+
+.candy-carrito {
+  margin-top: 32px;
+  padding: 24px;
+  border-radius: 12px;
+  background: #f8fafc;
+}
+
+.candy-carrito-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 16px 0;
+  border-bottom: 1px solid #dbe2ea;
+}
+
+.candy-controles {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.candy-controles button {
+  padding: 8px 12px;
+  border: 1px solid #cbd5e1;
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+.candy-quitar {
+  background: #fee2e2;
+  color: #991b1b;
+}
+
+.candy-total {
+  display: flex;
+  justify-content: space-between;
+  margin-top: 24px;
+  font-size: 1.25rem;
+}
+
+.candy-aviso {
+  margin-top: 12px;
+  font-size: 0.9rem;
+  color: #64748b;
+}
+
+@media (max-width: 600px) {
+  .candy-carrito-item {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .candy-controles {
+    flex-wrap: wrap;
+  }
+}
