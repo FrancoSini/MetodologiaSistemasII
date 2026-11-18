@@ -1,4 +1,3 @@
-
 import { useEffect, useState, type FormEvent } from "react";
 import type { Sesion } from "./AuthPanel";
 
@@ -17,16 +16,27 @@ interface Props {
   onProductoCreado: () => void;
 }
 
-export default function AdminCandyBar({
-  sesion,
-  onProductoCreado,
-}: Props) {
+function obtenerMensajeError(datos: unknown, predeterminado: string): string {
+  if (!datos || typeof datos !== "object") return predeterminado;
+  const respuesta = datos as {
+    error?: { mensaje?: string } | string;
+    mensaje?: string;
+    msg?: string;
+  };
+  if (typeof respuesta.error === "object" && typeof respuesta.error?.mensaje === "string") {
+    return respuesta.error.mensaje;
+  }
+  if (typeof respuesta.error === "string") return respuesta.error;
+  return respuesta.mensaje ?? respuesta.msg ?? predeterminado;
+}
+
+export default function AdminCandyBar({ sesion, onProductoCreado }: Props) {
   const [productos, setProductos] = useState<Producto[]>([]);
   const [nombre, setNombre] = useState("");
   const [categoria, setCategoria] = useState("");
   const [precio, setPrecio] = useState("");
   const [stock, setStock] = useState("");
-
+  const [productoEnEdicion, setProductoEnEdicion] = useState<number | null>(null);
   const [cargando, setCargando] = useState(true);
   const [guardando, setGuardando] = useState(false);
   const [error, setError] = useState("");
@@ -38,44 +48,50 @@ export default function AdminCandyBar({
 
     async function cargarProductos() {
       setCargando(true);
-
       try {
         const respuesta = await fetch(`${API_URL}/productos`, {
           signal: controller.signal,
         });
-
-        if (!respuesta.ok) {
-          throw new Error("No se pudieron cargar los productos.");
-        }
-
+        if (!respuesta.ok) throw new Error("No se pudieron cargar los productos.");
         const datos: Producto[] = await respuesta.json();
-
         if (!controller.signal.aborted) {
           setProductos(datos);
+          setError("");
         }
       } catch (err) {
         if (!controller.signal.aborted) {
-          setError(
-            err instanceof Error
-              ? err.message
-              : "Error al consultar productos."
-          );
+          setError(err instanceof Error ? err.message : "Error al consultar productos.");
         }
       } finally {
-        if (!controller.signal.aborted) {
-          setCargando(false);
-        }
+        if (!controller.signal.aborted) setCargando(false);
       }
     }
 
     void cargarProductos();
-
     return () => controller.abort();
   }, [recarga]);
 
-  async function crearProducto(evento: FormEvent<HTMLFormElement>) {
-    evento.preventDefault();
+  function limpiarFormulario() {
+    setNombre("");
+    setCategoria("");
+    setPrecio("");
+    setStock("");
+    setProductoEnEdicion(null);
+  }
 
+  function comenzarEdicion(producto: Producto) {
+    if (guardando) return;
+    setProductoEnEdicion(producto.id);
+    setNombre(producto.nombre);
+    setCategoria(producto.categoria);
+    setPrecio(String(producto.precio));
+    setStock(String(producto.stock));
+    setError("");
+    setExito("");
+  }
+
+  async function guardarProducto(evento: FormEvent<HTMLFormElement>) {
+    evento.preventDefault();
     if (guardando || sesion.rol !== "admin") return;
 
     setError("");
@@ -88,77 +104,61 @@ export default function AdminCandyBar({
       setError("Completá el nombre y la categoría.");
       return;
     }
-
-    if (
-      precio.trim() === "" ||
-      !Number.isFinite(precioNumero) ||
-      precioNumero < 0
-    ) {
+    if (precio.trim() === "" || !Number.isFinite(precioNumero) || precioNumero < 0) {
       setError("Ingresá un precio válido.");
       return;
     }
-
-    if (
-      stock.trim() === "" ||
-      !Number.isInteger(stockNumero) ||
-      stockNumero < 0
-    ) {
+    if (stock.trim() === "" || !Number.isInteger(stockNumero) || stockNumero < 0) {
       setError("El stock debe ser un entero mayor o igual a cero.");
       return;
     }
 
+    const editando = productoEnEdicion !== null;
+    const idEdicion = productoEnEdicion;
     setGuardando(true);
 
     try {
-      const respuesta = await fetch(`${API_URL}/productos`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${sesion.token}`,
-        },
-        body: JSON.stringify({
-          nombre: nombre.trim(),
-          categoria: categoria.trim(),
-          precio: precioNumero,
-          stock: stockNumero,
-        }),
-      });
+      const respuesta = await fetch(
+        editando ? `${API_URL}/productos/${idEdicion}` : `${API_URL}/productos`,
+        {
+          method: editando ? "PUT" : "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${sesion.token}`,
+          },
+          body: JSON.stringify({
+            nombre: nombre.trim(),
+            categoria: categoria.trim(),
+            precio: precioNumero,
+            stock: stockNumero,
+          }),
+        }
+      );
 
       if (!respuesta.ok) {
-        let mensaje = "No se pudo crear el producto.";
-
+        let mensaje = editando
+          ? "No se pudo actualizar el producto."
+          : "No se pudo crear el producto.";
         try {
-          const datos = await respuesta.json();
-          mensaje =
-            datos?.error?.mensaje ??
-            datos?.msg ??
-            datos?.mensaje ??
-            mensaje;
+          mensaje = obtenerMensajeError(await respuesta.json(), mensaje);
         } catch {
           // Conservar el mensaje original.
         }
-
         throw new Error(mensaje);
       }
 
-      const nuevoProducto: Producto = await respuesta.json();
-
+      const productoGuardado: Producto = await respuesta.json();
       setExito(
-        `¡${nuevoProducto.nombre} agregado correctamente!`
+        editando
+          ? `¡${productoGuardado.nombre} actualizado correctamente!`
+          : `¡${productoGuardado.nombre} agregado correctamente!`
       );
-
-      setNombre("");
-      setCategoria("");
-      setPrecio("");
-      setStock("");
-
+      limpiarFormulario();
       setRecarga((actual) => actual + 1);
       onProductoCreado();
     } catch (err) {
       setError(
-        err instanceof Error
-          ? err.message
-          : "Ocurrió un error al crear el producto."
+        err instanceof Error ? err.message : "Ocurrió un error al guardar el producto."
       );
     } finally {
       setGuardando(false);
@@ -175,9 +175,9 @@ export default function AdminCandyBar({
       </div>
 
       <div className="admin-formulario">
-        <h3>Agregar producto</h3>
+        <h3>{productoEnEdicion === null ? "Agregar producto" : "Editar producto"}</h3>
 
-        <form onSubmit={crearProducto}>
+        <form onSubmit={guardarProducto}>
           <label>
             Nombre del producto
             <input
@@ -189,7 +189,6 @@ export default function AdminCandyBar({
               required
             />
           </label>
-
           <label>
             Categoría
             <input
@@ -201,7 +200,6 @@ export default function AdminCandyBar({
               required
             />
           </label>
-
           <div className="admin-campos">
             <label>
               Precio ($)
@@ -214,7 +212,6 @@ export default function AdminCandyBar({
                 required
               />
             </label>
-
             <label>
               Stock
               <input
@@ -227,32 +224,34 @@ export default function AdminCandyBar({
               />
             </label>
           </div>
-
-          <button
-            type="submit"
-            className="admin-boton"
-            disabled={guardando}
-          >
-            {guardando ? "Guardando..." : "Agregar producto"}
+          <button type="submit" className="admin-boton" disabled={guardando}>
+            {guardando
+              ? "Guardando..."
+              : productoEnEdicion === null
+                ? "Agregar producto"
+                : "Guardar cambios"}
           </button>
+          {productoEnEdicion !== null && (
+            <button
+              type="button"
+              className="btn-actualizar-entradas"
+              disabled={guardando}
+              onClick={() => {
+                limpiarFormulario();
+                setError("");
+                setExito("");
+              }}
+            >
+              Cancelar edición
+            </button>
+          )}
         </form>
-
-        {error && (
-          <p className="admin-error" role="alert">
-            {error}
-          </p>
-        )}
-
-        {exito && (
-          <p className="admin-exito" role="status">
-            {exito}
-          </p>
-        )}
+        {error && <p className="admin-error" role="alert">{error}</p>}
+        {exito && <p className="admin-exito" role="status">{exito}</p>}
       </div>
 
       <div className="admin-formulario">
         <h3>Productos registrados</h3>
-
         <button
           type="button"
           className="btn-actualizar-entradas"
@@ -266,24 +265,25 @@ export default function AdminCandyBar({
         </button>
 
         {cargando && <p>Cargando productos...</p>}
-
-        {!cargando && productos.length === 0 && (
-          <p>No hay productos registrados.</p>
-        )}
+        {!cargando && productos.length === 0 && <p>No hay productos registrados.</p>}
 
         <div className="candy-bar-grid">
           {productos.map((producto) => (
-            <article
-              key={producto.id}
-              className="candy-bar-card"
-            >
+            <article key={producto.id} className="candy-bar-card">
               <h3>{producto.nombre}</h3>
               <p>Categoría: {producto.categoria}</p>
               <p>
-                Precio: $
-                {Number(producto.precio).toLocaleString("es-AR")}
+                Precio: ${Number(producto.precio).toLocaleString("es-AR")}
               </p>
               <p>Stock: {producto.stock}</p>
+              <button
+                type="button"
+                className="btn-actualizar-entradas"
+                disabled={guardando}
+                onClick={() => comenzarEdicion(producto)}
+              >
+                Editar
+              </button>
             </article>
           ))}
         </div>
