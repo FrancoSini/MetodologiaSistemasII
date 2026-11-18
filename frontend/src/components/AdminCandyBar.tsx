@@ -39,6 +39,7 @@ export default function AdminCandyBar({ sesion, onProductoCreado }: Props) {
   const [productoEnEdicion, setProductoEnEdicion] = useState<number | null>(null);
   const [cargando, setCargando] = useState(true);
   const [guardando, setGuardando] = useState(false);
+  const [eliminandoId, setEliminandoId] = useState<number | null>(null);
   const [error, setError] = useState("");
   const [exito, setExito] = useState("");
   const [recarga, setRecarga] = useState(0);
@@ -80,7 +81,7 @@ export default function AdminCandyBar({ sesion, onProductoCreado }: Props) {
   }
 
   function comenzarEdicion(producto: Producto) {
-    if (guardando) return;
+    if (guardando || eliminandoId !== null) return;
     setProductoEnEdicion(producto.id);
     setNombre(producto.nombre);
     setCategoria(producto.categoria);
@@ -92,7 +93,7 @@ export default function AdminCandyBar({ sesion, onProductoCreado }: Props) {
 
   async function guardarProducto(evento: FormEvent<HTMLFormElement>) {
     evento.preventDefault();
-    if (guardando || sesion.rol !== "admin") return;
+    if (guardando || eliminandoId !== null || sesion.rol !== "admin") return;
 
     setError("");
     setExito("");
@@ -165,6 +166,49 @@ export default function AdminCandyBar({ sesion, onProductoCreado }: Props) {
     }
   }
 
+  async function eliminarProducto(producto: Producto) {
+    if (guardando || eliminandoId !== null || sesion.rol !== "admin") return;
+
+    const confirmado = window.confirm(
+      `¿Querés eliminar "${producto.nombre}"? Esta acción no se puede deshacer.`
+    );
+    if (!confirmado) return;
+
+    setError("");
+    setExito("");
+    setEliminandoId(producto.id);
+
+    try {
+      const respuesta = await fetch(`${API_URL}/productos/${producto.id}`, {
+        method: "DELETE",
+        headers: { Authorization: `Bearer ${sesion.token}` },
+      });
+
+      if (!respuesta.ok) {
+        let mensaje = "No se pudo eliminar el producto.";
+        try {
+          mensaje = obtenerMensajeError(await respuesta.json(), mensaje);
+        } catch {
+          // Algunos errores no incluyen una respuesta JSON.
+        }
+        if (respuesta.status === 409 && mensaje === "No se pudo eliminar el producto.") {
+          mensaje = "No se puede eliminar el producto porque tiene compras asociadas.";
+        }
+        throw new Error(mensaje);
+      }
+
+      // El backend devuelve HTTP 204 sin cuerpo: no llamar a respuesta.json().
+      if (productoEnEdicion === producto.id) limpiarFormulario();
+      setProductos((actuales) => actuales.filter((item) => item.id !== producto.id));
+      setExito(`Producto "${producto.nombre}" eliminado correctamente.`);
+      onProductoCreado(); // También refresca el catálogo público.
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Error al eliminar el producto.");
+    } finally {
+      setEliminandoId(null);
+    }
+  }
+
   if (sesion.rol !== "admin") return null;
 
   return (
@@ -224,7 +268,7 @@ export default function AdminCandyBar({ sesion, onProductoCreado }: Props) {
               />
             </label>
           </div>
-          <button type="submit" className="admin-boton" disabled={guardando}>
+          <button type="submit" className="admin-boton" disabled={guardando || eliminandoId !== null}>
             {guardando
               ? "Guardando..."
               : productoEnEdicion === null
@@ -235,7 +279,7 @@ export default function AdminCandyBar({ sesion, onProductoCreado }: Props) {
             <button
               type="button"
               className="btn-actualizar-entradas"
-              disabled={guardando}
+              disabled={guardando || eliminandoId !== null}
               onClick={() => {
                 limpiarFormulario();
                 setError("");
@@ -255,7 +299,7 @@ export default function AdminCandyBar({ sesion, onProductoCreado }: Props) {
         <button
           type="button"
           className="btn-actualizar-entradas"
-          disabled={cargando || guardando}
+          disabled={cargando || guardando || eliminandoId !== null}
           onClick={() => {
             setError("");
             setRecarga((actual) => actual + 1);
@@ -279,10 +323,18 @@ export default function AdminCandyBar({ sesion, onProductoCreado }: Props) {
               <button
                 type="button"
                 className="btn-actualizar-entradas"
-                disabled={guardando}
+                disabled={guardando || eliminandoId !== null}
                 onClick={() => comenzarEdicion(producto)}
               >
                 Editar
+              </button>
+              <button
+                type="button"
+                className="boton-rechazar"
+                disabled={guardando || eliminandoId !== null}
+                onClick={() => void eliminarProducto(producto)}
+              >
+                {eliminandoId === producto.id ? "Eliminando..." : "Eliminar"}
               </button>
             </article>
           ))}
