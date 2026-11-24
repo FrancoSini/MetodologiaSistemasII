@@ -240,5 +240,76 @@ describe("Candy Bar - procesamiento de pagos", () => {
       { estado: "confirmada" },
       { transaction: transaccionMock }
     );
+
   });
+
+  it("permite comprar exactamente el stock disponible", async () => {
+    // Arrange
+    const { productoMock, compraMock } =
+      prepararEscenario({
+        stock: 3,
+        cantidad: 3,
+        aprobado: true,
+      });
+
+    // Act
+    const resultado = await procesarPago({
+      compraId: 1,
+      usuarioId: 5,
+    });
+
+    // Assert
+    expect(resultado.aprobado).toBe(true);
+
+    expect(productoMock.update).toHaveBeenCalledWith(
+      { stock: 0 },
+      { transaction: transaccionMock }
+    );
+
+    expect(compraMock.update).toHaveBeenCalledWith(
+      { estado: "confirmada" },
+      { transaction: transaccionMock }
+    );
+  });
+
+  it("rechaza cantidades repetidas que superan el stock", async () => {
+    // Arrange
+    const {
+      productoMock,
+      compraMock,
+      procesarPagoMock,
+    } = prepararEscenario({
+      stock: 5,
+    });
+
+    // Simulamos dos líneas del mismo producto:
+    // 3 + 3 = 6 unidades, pero solo hay 5.
+    vi.mocked(CompraProducto.findAll).mockResolvedValue([
+      {
+        compraId: 1,
+        productoId: 2,
+        cantidad: 3,
+      },
+      {
+        compraId: 1,
+        productoId: 2,
+        cantidad: 3,
+      },
+    ] as CompraProducto[]);
+
+    // Act y Assert
+    await expect(
+      procesarPago({
+        compraId: 1,
+        usuarioId: 5,
+      })
+    ).rejects.toThrow(
+      "Stock insuficiente para Pochoclos"
+    );
+
+    expect(productoMock.update).not.toHaveBeenCalled();
+    expect(compraMock.update).not.toHaveBeenCalled();
+    expect(procesarPagoMock).not.toHaveBeenCalled();
+  });
+
 });
