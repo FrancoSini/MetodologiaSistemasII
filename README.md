@@ -2,7 +2,7 @@
 
 Sistema web para la gestión integral de un cine, permitiendo consultar la cartelera, próximos estrenos, funciones disponibles, selección de butacas, compra de entradas y productos del Candy Bar desde una única plataforma.
 
-El sistema contará además con un panel administrativo para gestionar películas, salas, funciones, butacas, productos y ventas.
+El sistema incluye además un panel administrativo para gestionar películas, salas, funciones, butacas, productos y ventas.
 
 ---
 
@@ -26,127 +26,311 @@ Este proyecto busca centralizar esa gestión en una sola plataforma: por un lado
 ## 🛠️ Tecnología elegida
 
 ### Frontend
+
 * **React 19** — Librería para la construcción de la interfaz.
 * **TypeScript** — Tipado estático para el código del cliente.
 * **Vite** — Herramienta de desarrollo y compilación del frontend.
 
 ### Backend
+
 * **Node.js** — Entorno de ejecución del servidor.
 * **Express.js 5** — Framework para el desarrollo de la API REST.
 * **TypeScript** — Tipado estático también en el servidor.
 
 ### Base de datos
+
 * **PostgreSQL 16** — Sistema gestor de base de datos.
 * **Sequelize** — ORM para la comunicación entre Node.js y PostgreSQL.
 
 ### Seguridad
+
 * **JWT** (`jsonwebtoken`) — Autenticación de usuarios.
-* **bcrypt** — Encriptación de contraseñas.
+* **bcrypt** — Generación y comparación de hashes de contraseñas.
 
 ### Herramientas
+
 * **Git / GitHub** — Control de versiones y trabajo colaborativo.
 * **Docker / Docker Compose** — Hoy levanta la base de datos PostgreSQL (ver [Docker](#-docker)).
-* **Postman** — Pruebas sobre la API REST.
+* **Postman** — Pruebas manuales de la API REST.
+* **Vitest** — Pruebas automatizadas del backend.
+* **GitHub Actions** — Verificación automatizada de tests y compilación.
 
 > Esta selección de tecnologías fue definida por el equipo para el Taller 1. Puede ajustarse si durante el desarrollo aparece una necesidad concreta que lo justifique.
 
 ---
 
-## 📦 Cómo instalar dependencias
+## 🚀 Instalación y puesta en marcha desde cero
 
-```bash
-# Clonar el repositorio
-git clone <url-del-repositorio>
-cd gestion-cine
+Esta guía está pensada para **Windows 11 con PowerShell y Docker Desktop**. También puede utilizarse en otros sistemas operativos adaptando los comandos de copia de archivos. Los ejemplos asumen que todo se ejecuta en la **misma computadora**.
 
-# Instalar dependencias del backend
+### 1. Requisitos previos
+
+| Herramienta | Requisito / uso |
+| --- | --- |
+| Git | Clonar el repositorio |
+| Node.js **24 o superior** y npm | Ambos `package.json` declaran `node >=24.0.0` |
+| Docker Desktop + Docker Compose | Iniciar PostgreSQL 16 |
+| VS Code (opcional) | Editar y explorar el proyecto |
+| Navegador | Utilizar el frontend |
+| Postman (opcional) | Verificar endpoints HTTP |
+
+Verificar desde PowerShell:
+
+```powershell
+node --version
+npm --version
+git --version
+docker --version
+docker compose version
+```
+
+Antes de continuar, abrir Docker Desktop y esperar a que el motor esté iniciado.
+
+### 2. Clonar el proyecto
+
+Abrir PowerShell en la carpeta donde se quiera guardar el proyecto:
+
+```powershell
+git clone https://github.com/FrancoSini/MetodologiaSistemasII.git
+cd MetodologiaSistemasII
+git switch dev
+git pull origin dev
+```
+
+**Importante:** el enlace de GitHub se comprobó en la configuración remota del repositorio recibido. Aquí se utiliza `dev` como rama integrada de trabajo; si el equipo decide entregar desde `main` u otra rama, debe actualizar esta indicación después de fusionar los cambios. La documentación editada en `Read-Me` deberá incorporarse a `dev` mediante Pull Request para estar disponible al clonar esa rama.
+
+```powershell
+git branch --show-current
+```
+
+### 3. Preparar el archivo de configuración
+
+El repositorio incluye `.env.example` **en la raíz**, mientras que el servidor usa las variables de entorno al arrancar desde `backend/`. Copiarlo desde la raíz:
+
+```powershell
+Copy-Item .env.example backend/.env
+```
+
+Abrir `backend/.env` y revisar estos valores de desarrollo:
+
+```dotenv
+PORT=3001
+NODE_ENV=development
+CORS_ORIGIN=http://localhost:5173
+DB_HOST=localhost
+DB_PORT=5432
+DB_NAME=gestion_cine
+DB_USER=postgres
+DB_PASSWORD=cine123
+JWT_SECRET=reemplazar_por_un_secreto_largo_y_privado
+JWT_EXPIRES_IN=1d
+```
+
+- Los valores `DB_NAME`, `DB_USER` y `DB_PASSWORD` deben coincidir con `docker-compose.yml`. Los publicados aquí son **solo de desarrollo local**; no se deben reutilizar en producción.
+- `JWT_SECRET` debe cambiarse por una clave larga y no compartirse.
+- `CORS_ORIGIN` debe coincidir con el origen exacto de Vite (por defecto `http://localhost:5173`).
+- Si el puerto `5432` está ocupado, cambiar en `docker-compose.yml` `"5432:5432"` por `"5433:5432"` y establecer `DB_PORT=5433` en `backend/.env`.
+- **No subir** el archivo `backend/.env` al repositorio ni compartir credenciales reales.
+
+> El `.env.example` también declara `VITE_API_URL`, pero en el código revisado el frontend utiliza `http://localhost:3001/api` como constante en varios componentes. Por lo tanto, **cambiar `VITE_API_URL` no modifica automáticamente todas las llamadas**. Para ejecutar esta versión sin modificar código, mantener el backend en el puerto **3001**.
+
+### 4. Iniciar la base de datos
+
+Desde la raíz `MetodologiaSistemasII/`:
+
+```powershell
+docker compose up -d db
+docker compose ps
+```
+
+Se levanta PostgreSQL 16, con la base `gestion_cine` y un volumen persistente `pgdata`. El servicio se llama `db` y el contenedor `postgres_db`.
+
+Si no conecta, revisar:
+
+```powershell
+docker compose logs db
+```
+
+### 5. Instalar dependencias del backend
+
+Abrir una terminal nueva en la raíz:
+
+```powershell
 cd backend
 npm ci
+```
 
-# Instalar dependencias del frontend
-cd ../frontend
+`npm ci` instala exactamente lo declarado en el `package-lock.json`, sin modificarlo. Si falla, verificar la versión de Node y que el archivo de bloqueo esté presente.
+
+### 6. Iniciar el backend
+
+Desde `backend/`, con PostgreSQL activo y `backend/.env` configurado:
+
+```powershell
+npm run dev
+```
+
+El servidor carga el entorno, establece la conexión con PostgreSQL mediante Sequelize y ejecuta `sequelize.sync()` para crear **tablas faltantes**; no aplica automáticamente todas las migraciones SQL del repositorio. Debe verse el mensaje de conexión exitosa y el servidor en `http://localhost:3001`.
+
+En otra terminal PowerShell, comprobar la conexión con API y base de datos:
+
+```powershell
+Invoke-RestMethod http://localhost:3001/api/salud
+```
+
+**Resultado esperado:** un JSON con `estado: "ok"` y `baseDeDatos: "conectada"`. Si falla esta prueba, resolver la conexión antes de avanzar al frontend.
+
+### 7. Instalar e iniciar el frontend
+
+Abrir otra terminal desde la raíz y mantener el backend ejecutándose:
+
+```powershell
+cd frontend
 npm ci
+npm run dev
 ```
 
-El repositorio incluye un archivo `.env.example` con las variables de entorno necesarias (puerto, conexión a PostgreSQL, secreto de JWT, origen permitido para CORS, etc.). Cada integrante debe copiarlo como `.env` y completar sus valores locales. El backend lee el `.env` de la carpeta desde la que se ejecuta, por lo que conviene dejarlo en `backend/`:
+Abrir en el navegador la URL que indique Vite (usualmente `http://localhost:5173`). La interfaz utiliza la API local en `http://localhost:3001/api`.
 
-```bash
-Copy-Item .env.example backend/.env  # PowerShell
+Si Vite cambia a `5174`, ajustar `CORS_ORIGIN=http://localhost:5174` en `backend/.env` y **reiniciar el backend**. Si el backend se ejecuta en otro equipo, la URL fija del frontend necesitará adaptarse en el código.
+
+### 8. Verificación rápida de la instalación
+
+| Paso | Qué comprobar |
+| --- | --- |
+| PostgreSQL | `docker compose ps` muestra el servicio `db` activo |
+| Backend | `npm run dev` inicia sin errores de conexión |
+| API | `/api/salud` responde `estado: ok` y `baseDeDatos: conectada` |
+| Frontend | Vite informa su URL y el navegador abre la interfaz |
+| Cartelera | La interfaz consulta la API sin errores de CORS |
+| Funcionalidades administrativas | Requieren una cuenta con rol `admin` y datos de prueba; ver el apartado siguiente |
+
+### 9. Datos de prueba y cuenta administradora
+
+**No se encontró un seeder automático ni credenciales de administrador listas para utilizar** en el ZIP revisado. Una base recién creada puede estar vacía, por lo que la cartelera no mostrará películas hasta cargarlas.
+
+El endpoint `POST /api/autenticacion/registro` permite registrar usuarios, pero el código asigna de manera intencional el rol `cliente` (ignora un rol enviado desde el navegador). Para probar el panel de administración se necesita **preparar de forma controlada un usuario `admin`**. No se deben publicar contraseñas ni claves de demostración en el repositorio.
+
+Para una demo local, el equipo puede registrar su propia cuenta y, **solo en la base local de desarrollo y con autorización del equipo**, promoverla desde una herramienta SQL como pgAdmin o `psql`:
+
+```sql
+-- Ejecutar únicamente en la base local de pruebas.
+-- Sustituir el email por el de la cuenta de prueba creada por el equipo.
+UPDATE usuarios
+SET rol = 'admin'
+WHERE email = 'admin.demo@ejemplo.local';
 ```
 
-Los datos de conexión a la base (`DB_NAME`, `DB_USER`, `DB_PASSWORD`) deben coincidir con los de `docker-compose.yml`. Además hay que definir un `JWT_SECRET` propio y no publicar archivos `.env`. Si PostgreSQL ocupa el puerto 5432 en la computadora, se puede cambiar solo el **puerto del host** a `5433:5432` y configurar `DB_PORT=5433` en `backend/.env`. No subir credenciales ni configuraciones locales sin coordinarlo con el equipo.
+Cerrar sesión e iniciar sesión nuevamente para obtener un JWT con el rol actualizado. El equipo debe verificar previamente que el registro se haya realizado y que la tabla `usuarios` exista. Una vez con permisos, se pueden cargar películas, salas y funciones desde el panel de administración o la API.
 
-> Requisito declarado por ambos `package.json`: **Node.js 24 o superior**. Se necesitan Docker Desktop, Git y npm.
+**Antes de entregar:** preparar datos demostrables y validar el circuito completo, sin subir una base con datos personales o secretos.
+
+### 10. Migraciones SQL presentes en el repositorio
+
+En `backend/migrations/` hay dos archivos:
+
+- `001_agregar_estado_funciones.sql`: agrega el estado de cancelación de funciones.
+- `002_crear_reservas_butacas.sql`: define reservas de butacas y restricciones para reservas activas.
+
+Estas migraciones **no se ejecutan por `npm run dev`**. Son scripts SQL destinados a aplicarse cuando el esquema de la base lo requiera; el orden es `001` y luego `002`, porque presuponen tablas existentes. **No ejecutarlos a ciegas:** primero iniciar el backend, revisar el esquema real y confirmar con el equipo cuáles se aplicaron en esa base. Para una entrega reproducible, registrar ese estado o proporcionar una inicialización automatizada.
+
+### 11. Detener el entorno
+
+Cerrar los procesos `npm run dev` con `Ctrl + C`. Desde la raíz del repositorio:
+
+```powershell
+docker compose down
+```
+
+Este comando detiene los contenedores sin borrar el volumen con los datos. **No utilizar `docker compose down -v`** salvo que se quiera eliminar la base de datos local.
 
 ---
 
-## ▶️ Cómo ejecutar el proyecto
+## 🛠️ Problemas habituales de instalación
 
-**1. Base de datos (PostgreSQL con Docker):**
-
-```bash
-docker compose up -d db
-```
-
-**2. Backend** (en `http://localhost:3001`):
-
-```bash
-cd backend
-npm run dev
-```
-
-Al iniciar, el backend se conecta a PostgreSQL y crea las tablas que falten (no borra ni modifica las existentes). Para comprobar que funciona:
-
-```text
-GET http://localhost:3001/api/salud
-```
-
-**3. Frontend** (en otra terminal, normalmente en `http://localhost:5173`):
-
-```bash
-cd frontend
-npm run dev
-```
-
-> Si el puerto 5173 está ocupado, Vite puede usar otro como `5174`. En ese caso, actualizar `CORS_ORIGIN` en `backend/.env` para que coincida con el origen real del navegador y reiniciar el backend. El frontend probado en `feature/frontend-cine` consulta `http://localhost:3001/api` de forma fija en `App.tsx`; no se configura todavía mediante `VITE_API_URL`.
-
-> **Estado por rama:** en `Read-Me` se documenta el estado integrado en esta rama; en `feature/frontend-cine` ya se desarrollaron cartelera, funciones, mapa y reserva de butacas, comprobante de compra pendiente y mejoras responsive. Estos cinco commits **aún no figuran incorporados** a `Read-Me` según la comparación de ramas del 08/11/2026. No confundir código desarrollado con código fusionado.
+| Problema | Causa posible | Qué revisar |
+| --- | --- | --- |
+| `npm ci` falla | Node o lockfile | `node --version`, ejecutar en la carpeta correcta |
+| Docker no inicia | Docker Desktop apagado | Abrir Docker Desktop y revisar el motor |
+| Puerto 5432 ocupado | PostgreSQL local u otro contenedor | Cambiar mapeo a `5433:5432` y `DB_PORT=5433` |
+| `SequelizeConnectionError` | Credenciales o DB incorrectas | `backend/.env`, `docker-compose.yml`, logs del contenedor |
+| `/api/salud` no responde | Backend caído o puerto distinto | Revisar salida de `npm run dev`, `PORT=3001` |
+| Error de CORS | Puerto del frontend diferente | Ajustar `CORS_ORIGIN` y reiniciar backend |
+| Frontend no carga datos | URL fija de API o backend inactivo | Revisar navegador y `http://localhost:3001/api/salud` |
+| Respuesta 401/403 en administración | Falta token o rol | Iniciar sesión con cuenta de prueba administradora |
+| Cartelera vacía | Base sin datos iniciales | Preparar registros con cuenta admin |
 
 ---
 
 ## 📌 Estado actual y pendientes conocidos
 
-**Estado actual:** proyecto en desarrollo con funcionalidades repartidas en ramas. `feature/frontend-cine` tiene un frontend conectado a la API con reserva de butacas y comprobante de compra pendiente; la integración con `Read-Me`/`dev` debe verificarse con Git antes de asumir que está disponible allí. El circuito de confirmación de compra/pago y emisión de entradas en el frontend sigue pendiente.
+**Estado actual:** El Sistema de Gestión de Cine se encuentra en desarrollo avanzado. Actualmente cuenta con funcionalidades implementadas en el backend y frontend, incluyendo gestión de películas, salas, funciones, reservas de butacas, autenticación, compras, entradas y Candy Bar.
+
+El proyecto incorpora validaciones de negocio, manejo centralizado de errores, pruebas automatizadas con Vitest y un workflow de GitHub Actions para verificar el backend.
+
+Aunque estas funcionalidades están desarrolladas, todavía es necesario comprobar la ejecución completa del sistema y documentar los resultados de las verificaciones.
+
+### Funcionalidades implementadas
 
 | Módulo | Estado |
 | --- | --- |
-| Modelo de datos | ✅ Implementado; incluye reservas de butacas en la rama de trabajo más reciente |
-| Películas, salas y funciones | ✅ Implementado (consulta y alta) |
-| Generación de butacas (por sala y por función) | ✅ Implementado |
-| Manejo central de errores | ✅ Implementado |
-| Productos, compras y entradas | 🟡 Controllers y rutas básicos; falta el flujo completo |
-| Autenticación (registro/login con JWT) | 🟡 Controller y middlewares hechos; las rutas todavía no están montadas |
-| Pagos simulados | ⏳ Pendiente (el medio de pago se registra en la compra, sin procesamiento) |
-| Reservas de butacas | ✅ Backend con reservas de 15 minutos e índice único para reserva activa, probado en rama de trabajo |
-| Frontend | ✅ Cartelera, funciones, butacas, reservas y comprobante desarrollados en `feature/frontend-cine`; integración a otras ramas pendiente |
+| Modelo de datos con Sequelize y PostgreSQL | ✅ Implementado |
+| Gestión de películas, salas y funciones | ✅ Implementado |
+| Generación de butacas por sala y función | ✅ Implementado |
+| Validación de superposición de horarios | ✅ Implementado |
+| Manejo centralizado de errores | ✅ Implementado |
+| Autenticación con JWT y control de roles | ✅ Implementado |
+| Selección y reserva de butacas | ✅ Implementado |
+| Compra y emisión de entradas | ✅ Implementado |
+| Simulación de pagos (efectivo, débito y crédito) | ✅ Implementado |
+| Gestión de productos del Candy Bar | ✅ Implementado |
+| Carrito de compras del Candy Bar | ✅ Implementado |
+| Descuento de stock al confirmar compras | ✅ Implementado |
+| Frontend con React y TypeScript | ✅ Desarrollado |
+| Panel de administración | ✅ Implementado |
+| Tests automatizados con Vitest | ✅ 20 casos definidos (ejecución pendiente de verificar) |
+| GitHub Actions | ✅ Workflow configurado |
 
-**Pendientes conocidos:**
+### Calidad y pruebas automatizadas
 
-* [ ] Definir y bocetar el diseño de las pantallas principales (cartelera, selección de butacas, checkout).
-* [x] Modelar la base de datos (usuarios, películas, salas, funciones, butacas, compras, entradas, productos).
-* [x] Definir la estructura de carpetas del backend (la del frontend queda pendiente).
-* [x] Configurar el proyecto base de backend (Express + Sequelize) y frontend (React + TypeScript + Vite).
-* [ ] Completar el `docker-compose.yml` (hoy solo levanta PostgreSQL; faltan backend y frontend).
-* [ ] Implementar la simulación del módulo de pagos (débito, crédito, efectivo).
-* [ ] Montar las rutas de autenticación y aplicar los middlewares de token y rol.
-* [x] Implementar los módulos de películas, funciones y salas (consulta y alta).
-* [ ] Completar películas, salas y funciones con edición y baja (`PUT` / `DELETE`).
-* [x] Exponer las butacas de cada función (`GET /api/funciones/:id/butacas`) en la rama de trabajo del backend.
-* [x] Implementar selección visual y reserva con control de disponibilidad en `feature/frontend-cine` y servicios de backend (integración a otras ramas pendiente).
-* [ ] Implementar Candy Bar y flujo de compra completo (hoy el total llega desde el cliente y no se validan butacas).
-* [ ] Armar colección de Postman para pruebas de la API.
-* [ ] Agregar datos de prueba (seeders) y tests automáticos.
-* [x] Manejo central de errores (`AppError` + `errorHandler`).
+El backend utiliza **Vitest** para verificar comportamientos relevantes del sistema.
+
+Actualmente se encuentran definidos 20 casos de prueba distribuidos en tres archivos:
+
+- `superposicionHorarios.test.ts`: 6 pruebas sobre horarios de funciones.
+- `productos.test.ts`: 9 pruebas sobre reglas y validaciones de productos.
+- `pagoService.test.ts`: 5 pruebas sobre procesamiento de pagos y control de stock.
+
+Estas pruebas permiten comprobar distintos escenarios, incluyendo operaciones normales, condiciones límite y situaciones de error.
+
+También se configuró un workflow de **GitHub Actions** que automatiza la instalación de dependencias, la ejecución de pruebas y la compilación del backend.
+
+**Importante:** La ejecución satisfactoria de los tests y del workflow debe verificarse y registrarse como evidencia antes de la entrega.
+
+### Pendientes conocidos
+
+- [x] Modelar la base de datos con Sequelize y PostgreSQL.
+- [x] Definir la estructura del backend y frontend.
+- [x] Configurar Express, React, TypeScript y Vite.
+- [x] Implementar gestión de películas, salas y funciones.
+- [x] Implementar validación de superposición de horarios.
+- [x] Implementar autenticación con JWT y roles.
+- [x] Implementar selección y reserva de butacas.
+- [x] Implementar compra y emisión de entradas.
+- [x] Implementar pagos simulados mediante Factory y Strategy.
+- [x] Implementar gestión de productos del Candy Bar.
+- [x] Implementar carrito y procesamiento de compras.
+- [x] Implementar manejo centralizado de errores.
+- [x] Incorporar tests automatizados con Vitest.
+- [x] Configurar GitHub Actions para el backend.
+- [ ] Comprobar la ejecución satisfactoria de todos los tests.
+- [ ] Verificar la compilación completa del backend.
+- [ ] Documentar los casos de prueba y sus resultados.
+- [ ] Registrar evidencia de revisión de calidad del código.
+- [ ] Verificar la ejecución completa del frontend y backend.
+- [ ] Revisar la configuración y protección de variables de entorno.
+- [ ] Verificar y actualizar la colección de Postman, si corresponde.
+- [ ] Preparar la demostración y defensa final del proyecto.
 
 ---
 
@@ -229,7 +413,7 @@ Los errores esperados se lanzan con `AppError` (mensaje y código HTTP) y el `er
 
 ## 👤 Roles de usuario
 
-El sistema contará inicialmente con dos roles principales.
+El sistema contempla dos roles principales.
 
 ### Administrador
 
@@ -281,308 +465,3 @@ Podrá:
 * Crear, editar, eliminar y consultar películas.
 * Agregar género, duración, clasificación, sinopsis, poster y trailer.
 * Marcar películas como próximas a estrenar.
-
-### Cartelera
-
-Los clientes podrán consultar películas disponibles, información de cada película, funciones disponibles, horarios y salas.
-
-### Próximos estrenos
-
-Visualización de películas próximas a estrenarse, fecha de estreno, información, trailer, género y sinopsis.
-
-### Gestión de salas
-
-El administrador podrá crear, modificar y eliminar salas, configurar la cantidad de butacas y consultar su distribución.
-
-### Gestión de funciones
-
-El administrador podrá crear, modificar y eliminar funciones, asociarlas a una película y una sala, definir fecha y horario, y consultar funciones disponibles.
-
-### Selección de butacas
-
-1. Seleccionar una película.
-2. Seleccionar una función.
-3. Visualizar la distribución de la sala.
-4. Consultar las butacas disponibles.
-5. Seleccionar una o más butacas.
-6. Continuar con la compra.
-
-El sistema deberá evitar que una misma butaca sea vendida para la misma función a más de un cliente.
-
-### 🎟️ Compra de entradas
-
-Seleccionar función, seleccionar butacas, revisar el resumen de compra, confirmar la compra, realizar el pago y obtener las entradas.
-
-### 🍿 Candy Bar
-
-Productos como pochoclos, gaseosas, agua, golosinas y combos.
-
-El administrador podrá crear, modificar y eliminar productos, modificar precios y gestionar stock.
-El cliente podrá consultar productos, seleccionarlos, definir cantidades y agregarlos a su compra.
-
-### 💳 Pagos
-
-Se simulará el proceso de pago, permitiendo elegir entre los siguientes medios:
-
-* Tarjeta de débito.
-* Tarjeta de crédito.
-* Efectivo.
-
-La simulación será simple: no se integrará con una pasarela de pago real, sino que se registrará el medio elegido y se confirmará la compra.
-
-### 🎫 Entradas
-
-Luego de realizar una compra, el sistema generará una entrada asociada a película, función, sala, butaca, usuario, fecha de compra y código de entrada.
-
----
-
-## 🔄 Flujo principal de compra
-
-```text
-Usuario
-   │
-   ▼
-Selecciona película
-   │
-   ▼
-Selecciona función
-   │
-   ▼
-Selecciona butacas
-   │
-   ▼
-Agrega productos del Candy Bar
-   │
-   ▼
-Revisa compra
-   │
-   ▼
-Realiza pago
-   │
-   ▼
-Compra confirmada
-   │
-   ▼
-Obtiene sus entradas
-```
-
----
-
-## 🌐 API REST
-
-El backend expone una API REST para la comunicación entre el frontend y el servidor. Referencias: ✅ implementado · ⏳ pendiente (propuesta inicial, puede modificarse a medida que avance el desarrollo).
-
-### Estado del servidor
-```text
-GET    /api/salud                    ✅  Comprueba que el backend y la base responden
-```
-
-### Autenticación
-```text
-POST   /api/autenticacion/registro   ⏳  (controller hecho, ruta sin montar)
-POST   /api/autenticacion/login      ⏳  (controller hecho, ruta sin montar)
-```
-
-### Películas
-```text
-GET    /api/peliculas                ✅  (filtro opcional: ?proximoEstreno=true|false)
-GET    /api/peliculas/:id            ✅
-POST   /api/peliculas                ✅
-PUT    /api/peliculas/:id            ⏳
-DELETE /api/peliculas/:id            ⏳
-```
-
-### Salas
-```text
-GET    /api/salas                    ✅
-GET    /api/salas/:id                ✅  (incluye sus butacas)
-POST   /api/salas                    ✅  (crea la sala y sus butacas: filas y butacasPorFila)
-PUT    /api/salas/:id                ⏳
-DELETE /api/salas/:id                ⏳
-```
-
-### Funciones
-```text
-GET    /api/funciones                ✅  (incluye película y sala)
-GET    /api/funciones/:id            ✅
-POST   /api/funciones                ✅  (genera las butacas de la función como "disponible")
-PUT    /api/funciones/:id            ⏳
-DELETE /api/funciones/:id            ⏳
-```
-
-### Butacas
-```text
-GET    /api/funciones/:id/butacas    ⏳
-POST   /api/funciones/:id/butacas    ⏳
-```
-
-### Productos / Candy Bar
-```text
-GET    /api/productos                ✅
-GET    /api/productos/:id            ✅
-POST   /api/productos                ✅
-PUT    /api/productos/:id            ⏳
-DELETE /api/productos/:id            ⏳
-```
-
-### Compras
-```text
-GET    /api/compras                  ✅
-GET    /api/compras/:id              ✅
-POST   /api/compras                  ✅  (registro básico; falta validar butacas y calcular el total)
-```
-
-### Entradas
-```text
-GET    /api/entradas                 ✅
-GET    /api/entradas/:id             ✅
-POST   /api/entradas                 ✅
-```
-
----
-
-## 🐳 Docker
-
-Docker facilita la configuración del entorno de desarrollo. Hoy el archivo `docker-compose.yml` levanta **solo la base de datos** (PostgreSQL 16, base `gestion_cine`, volumen persistente). El puerto de host puede ser 5432 o 5433 según la configuración local de cada integrante:
-
-```bash
-docker compose up -d db
-```
-
-Todavía no hay contenedores para el backend ni para el frontend: se ejecutan de forma manual con `npm run dev`. Completar el `docker-compose.yml` con ambos servicios es un pendiente.
-
----
-
-## 🧪 Pruebas
-
-Se utilizará **Postman** para realizar pruebas sobre la API REST, comprobando respuestas HTTP, registro de usuarios, autenticación, creación/actualización/eliminación de recursos, validaciones, manejo de errores, autorización según roles, relaciones entre entidades, disponibilidad de butacas y registro de compras.
-
-Las pruebas del flujo frontend/backend se realizaron **manualmente** mediante PowerShell y navegador. No hay un conjunto de tests automáticos propio verificado para estas ramas; la ejecución de `npm test` en backend todavía no configura pruebas reales. Algunos casos a revisar:
-
-| Pedido | Respuesta esperada |
-| --- | --- |
-| `GET /api/salas/abc` | `400` — "El ID debe ser un número entero positivo" |
-| `GET /api/salas/99` (inexistente) | `404` — "Sala no encontrada" |
-| `POST /api/funciones` con una película inexistente | `400` — "Se hace referencia a un recurso que no existe" |
-| `POST /api/salas` con más de 26 filas | `400` — "Cantidad de filas o butacas inválida" |
-| Ruta inexistente | `404` — "Ruta no encontrada" |
-
----
-
-## 📁 Estructura del proyecto
-
-```text
-gestion-cine/
-│
-├── backend/
-│   ├── package.json
-│   ├── tsconfig.json
-│   └── src/
-│       ├── app.ts            # arma la app Express (middlewares y rutas)
-│       ├── server.ts         # conecta la base y levanta el servidor
-│       ├── config/           # conexión a PostgreSQL (Sequelize)
-│       ├── models/           # Usuario, Película, Sala, Butaca, Función, FuncionButaca,
-│       │                     # Producto, Compra, CompraProducto, Entrada
-│       ├── routes/           # una ruta por módulo + index
-│       ├── controllers/      # lógica de cada endpoint
-│       ├── services/         # reglas reutilizables (butacas de sala y de función)
-│       ├── middlewares/      # auth (token y rol) y errorHandler
-│       └── utils/            # AppError, asyncHandler, jwt, params, validar
-│
-├── frontend/
-│   └── src/                  # React + TypeScript + Vite (implementación depende de la rama)
-│
-├── docs/
-│   └── decisiones-diseno.md  # análisis de diseño del Taller II
-│
-├── .env.example
-├── docker-compose.yml
-└── README.md
-```
-
-Se incorporaron scripts SQL de migración en el trabajo más reciente del backend; comprobar si están integrados en la rama actual. Quedan por preparar `seeders/`, los `Dockerfile` del backend y frontend, y la organización interna del frontend (`components/`, `pages/`, `services/`, `types/`). Esta estructura podrá ajustarse a medida que evolucione el proyecto, siempre buscando mantener nombres claros, consistencia con el stack elegido y facilidad para encontrar archivos.
-
----
-
-## 📚 Documentación de diseño
-
-El análisis de diseño y mantenibilidad del Taller II (diagnóstico, alternativas, decisión y trade-offs sobre el código real) está en [`docs/decisiones-diseno.md`](docs/decisiones-diseno.md).
-
----
-
-
----
-
-## ✅ Validaciones locales (Taller III)
-
-Desde la raíz del repositorio, ejecutar por separado:
-
-```powershell
-cd backend
-npm ci
-npm run build
-
-cd ../frontend
-npm ci
-npm run lint
-npm run build
-```
-
-Los comandos `build` compilan TypeScript y, en frontend, también generan `dist/`. `lint` valida reglas estáticas del frontend. **No equivale a tener pruebas automatizadas unitarias o de integración**: estas aún deben incorporarse y ejecutarse en un entorno reproducible. Si alguna validación falla, registrar y corregir el resultado en lugar de marcarla como aprobada.
-
-### Casos de prueba propuestos
-
-Regla de negocio: **no permitir funciones superpuestas en una misma sala**. Casos a automatizar: sala libre (aceptar), funciones que se solapan (HTTP 409), funciones consecutivas sin solapamiento (aceptar) y funciones canceladas (no bloquear horario). Las pruebas de reserva simultánea y doble venta requieren además verificar restricciones de base de datos.
-
----
-
-## 🔀 Trabajo colaborativo y Pull Requests (Taller III)
-
-1. Actualizar la rama de base antes de iniciar una tarea y trabajar en una rama específica (`feature/`, `fix/` o `docs/`).
-2. Hacer commits pequeños con mensajes claros, relacionados con una funcionalidad o corrección.
-3. Ejecutar localmente las validaciones aplicables antes de subir la rama.
-4. Subir la rama a GitHub y abrir un **Pull Request a `dev`**.
-5. Describir qué cambió, cómo se probó, riesgos conocidos y capturas si se modificó la interfaz.
-6. Solicitar revisión de otro integrante; resolver observaciones y conflictos antes de fusionar.
-7. Una vez habilitado, ejecutar en CI las mismas verificaciones de compilación, lint y tests que en local. **No se debe afirmar que existe CI funcional hasta crear y verificar el workflow**.
-
-El código de `feature/frontend-cine` no se considera integrado a otras ramas solo por estar subido al remoto.
-
----
-
-## ⚠️ Limitaciones conocidas
-
-- En el frontend de pruebas se usa `usuarioId = 1`, precio ficticio por butaca y una URL local fija para la API; no es apto para ventas reales.
-- Una compra se crea como `pendiente`; el backend revisado no expone un flujo de confirmación de pago integrado al frontend.
-- La reserva de varias butacas se realiza mediante varias solicitudes, no en una transacción única del lado del servidor. Ante fallas parciales, el frontend intenta liberar las reservas creadas, pero puede requerirse revisión manual.
-- Las reservas duran 15 minutos y su vencimiento se procesa al ejecutar operaciones que comprueban reservas vencidas.
-- No publicar `.env`, secretos, `node_modules` ni datos locales de prueba en entregas o commits.
-
-## 🎯 Objetivo final
-
-Al finalizar el desarrollo se espera contar con una aplicación web funcional que permita:
-
-1. Registrar e iniciar sesión como usuario.
-2. Consultar la cartelera.
-3. Consultar próximos estrenos.
-4. Consultar información de las películas.
-5. Consultar funciones disponibles.
-6. Seleccionar una función.
-7. Visualizar y seleccionar butacas.
-8. Comprar entradas.
-9. Agregar productos del Candy Bar.
-10. Realizar el pago.
-11. Generar las entradas correspondientes.
-12. Consultar el historial de compras.
-13. Administrar películas, salas y funciones.
-14. Administrar productos del Candy Bar.
-15. Gestionar usuarios y roles.
-16. Consultar información y estadísticas de ventas.
-
----
-
-## 📌 Estado del proyecto
-
-**En desarrollo — backend en construcción.**
-
-La base del backend, el modelo de datos y la cartelera (películas, salas y funciones) ya están implementados. Siguen pendientes la autenticación, el flujo completo de compra con pagos simulados y las pantallas del frontend. Las funcionalidades se incorporarán progresivamente durante el período de desarrollo.
