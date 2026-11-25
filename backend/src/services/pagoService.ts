@@ -58,13 +58,13 @@ async function prepararDescuentoStock(
   }
 
   const descuentos: DescuentoStock[] = [];
-
-  // Orden consistente de bloqueos.
-  const productosIds = [...cantidades.keys()].sort(
-    (a, b) => a - b
+  // Orden consistente de bloqueos para reducir
+  // posibles conflictos entre transacciones.
+  const productosOrdenados = [...cantidades.entries()].sort(
+    ([idA], [idB]) => idA - idB
   );
 
-  for (const productoId of productosIds) {
+  for (const [productoId, cantidad] of productosOrdenados) {
     const producto = await Producto.findByPk(productoId, {
       transaction,
       lock: transaction.LOCK.UPDATE,
@@ -77,8 +77,6 @@ async function prepararDescuentoStock(
       );
     }
 
-    const cantidad = cantidades.get(productoId)!;
-
     if (producto.stock < cantidad) {
       throw new AppError(
         `Stock insuficiente para ${producto.nombre}`,
@@ -88,7 +86,6 @@ async function prepararDescuentoStock(
 
     descuentos.push({ producto, cantidad });
   }
-
   return descuentos;
 }
 
