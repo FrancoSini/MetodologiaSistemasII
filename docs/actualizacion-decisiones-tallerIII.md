@@ -1,7 +1,5 @@
 # Actualización de decisiones de diseño — Taller III
 
-**Materia:** Metodología de Sistemas II · TUP · 2026  
-**Proyecto:** Sistema de Gestión de Cine  
 **Documento complementario de:** [`decisiones-diseno.md`](decisiones-diseno.md)  
 
 
@@ -86,7 +84,7 @@ El documento original enumera patrones como alternativas o propuestas. El proyec
 
 | Verificación | Qué permite demostrar | Resultado conocido |
 | --- | --- | --- |
-| `backend`: `npm test` | Reglas relevantes en horarios, productos y pagos | **20/20 tests aprobados** en la ejecución local compartida. |
+| `backend`: `npm test` | Reglas relevantes en horarios, productos y pagos | **22/22 tests aprobados** en la ejecución local compartida. |
 | `backend`: `npm run build` | Compilación TypeScript | Finalizó sin errores en la ejecución local. |
 | `frontend`: `npm run lint` | Reglas de análisis estático configuradas | Finalizó sin errores en la ejecución local. |
 | `frontend`: `npm run build` | Compilación TypeScript y Vite | Finalizó correctamente en la ejecución local. |
@@ -100,7 +98,18 @@ Estas verificaciones **no equivalen a cobertura total**, ni demuestran por sí s
 
 La evolución de `sala.controller.ts` hacia `salaService.ts`, la centralización de errores y los middlewares de productos constituyen ejemplos concretos de decisiones de diseño ya observables en el código.
 
-Proceso sugerido: crear rama de trabajo → revisar diff → implementar cambio pequeño → ejecutar tests y compilación → documentar resultados → abrir PR hacia `dev`.
+Como parte del Taller III, también realizamos un refactoring en `backend/src/services/pagoService.ts`. Reemplazamos una afirmación no nula (`!`) por un recorrido directo de las entradas del `Map`, utilizando `entries()`. Esto permitió mejorar la legibilidad y evitar una afirmación de tipo innecesaria, manteniendo las reglas de validación de stock y el orden de los bloqueos transaccionales.
+
+Además, incorporamos dos pruebas automatizadas en `backend/tests/pagoService.test.ts`:
+
+- **Caso límite:** comprar exactamente la cantidad disponible, verificando que el stock final sea 0.
+- **Caso de error:** intentar comprar más unidades que las disponibles mediante líneas repetidas del mismo producto, verificando que se rechace la operación sin descontar stock.
+
+Después de realizar los cambios, ejecutamos `npm test` y `npm run build`, obteniendo **22 tests aprobados y compilación TypeScript sin errores**.
+
+La mejora está documentada en `docs/Revision_calidad_codigo.md`.
+
+Proceso aplicado: crear rama de trabajo → revisar el código → implementar un cambio pequeño → ejecutar tests y compilación → documentar resultados → crear Pull Request hacia `dev`.
 
 ## 8. Límites y decisiones que mantenemos
 
