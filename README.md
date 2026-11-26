@@ -97,7 +97,7 @@ git switch dev
 git pull origin dev
 ```
 
-**Importante:** el enlace de GitHub se comprobó en la configuración remota del repositorio recibido. Aquí se utiliza `dev` como rama integrada de trabajo; si el equipo decide entregar desde `main` u otra rama, debe actualizar esta indicación después de fusionar los cambios. La documentación editada en `Read-Me` deberá incorporarse a `dev` mediante Pull Request para estar disponible al clonar esa rama.
+**Importante:** el enlace de GitHub se comprobó en la configuración remota del repositorio recibido. Aquí se utiliza `dev` como rama integrada de trabajo; si el equipo decide entregar desde `main` u otra rama, debe actualizar esta indicación después de fusionar los cambios. La documentación se mantiene en la rama integrada `dev`.
 
 ```powershell
 git branch --show-current
@@ -111,28 +111,13 @@ El repositorio incluye `.env.example` **en la raíz**, mientras que el servidor 
 Copy-Item .env.example backend/.env
 ```
 
-Abrir `backend/.env` y revisar estos valores de desarrollo:
+El backend utiliza variables de entorno para configurar la conexión a PostgreSQL, el servidor y la autenticación. Después de copiar el archivo de ejemplo, adaptar `backend/.env` al entorno local sin publicar contraseñas ni claves secretas.
 
-```dotenv
-PORT=3001
-NODE_ENV=development
-CORS_ORIGIN=http://localhost:5173
-DB_HOST=localhost
-DB_PORT=5432
-DB_NAME=gestion_cine
-DB_USER=postgres
-DB_PASSWORD=cine123
-JWT_SECRET=reemplazar_por_un_secreto_largo_y_privado
-JWT_EXPIRES_IN=1d
-```
+**Importante para ejecutar esta versión:** Docker Compose publica PostgreSQL en el puerto **5433** del equipo (5432 dentro del contenedor), por lo que el puerto de conexión configurado en el backend debe coincidir. El servidor utiliza el puerto **3001** y el frontend de Vite normalmente se inicia en **5173**.
 
-- Los valores `DB_NAME`, `DB_USER` y `DB_PASSWORD` deben coincidir con `docker-compose.yml`. Los publicados aquí son **solo de desarrollo local**; no se deben reutilizar en producción.
-- `JWT_SECRET` debe cambiarse por una clave larga y no compartirse.
-- `CORS_ORIGIN` debe coincidir con el origen exacto de Vite (por defecto `http://localhost:5173`).
-- Si el puerto `5432` está ocupado, cambiar en `docker-compose.yml` `"5432:5432"` por `"5433:5432"` y establecer `DB_PORT=5433` en `backend/.env`.
-- **No subir** el archivo `backend/.env` al repositorio ni compartir credenciales reales.
+El archivo de ejemplo y el código no utilizan actualmente el mismo nombre para la clave JWT: el código espera `JWT_SECRET_KEY`. Hay que tener en cuenta esa diferencia al configurar el entorno. El código también tiene una clave fija de respaldo si no se define la variable, lo que constituye una limitación de seguridad conocida.
 
-> El `.env.example` también declara `VITE_API_URL`, pero en el código revisado el frontend utiliza `http://localhost:3001/api` como constante en varios componentes. Por lo tanto, **cambiar `VITE_API_URL` no modifica automáticamente todas las llamadas**. Para ejecutar esta versión sin modificar código, mantener el backend en el puerto **3001**.
+**Por seguridad:** no subir `backend/.env` al repositorio ni compartir credenciales reales. Las contraseñas y configuraciones de PostgreSQL deben ser coherentes entre el backend y Docker Compose.
 
 ### 4. Iniciar la base de datos
 
@@ -268,7 +253,7 @@ Este comando detiene los contenedores sin borrar el volumen con los datos. **No 
 
 El proyecto incorpora validaciones de negocio, manejo centralizado de errores, pruebas automatizadas con Vitest y un workflow de GitHub Actions para verificar el backend.
 
-Aunque estas funcionalidades están desarrolladas, todavía es necesario comprobar la ejecución completa del sistema y documentar los resultados de las verificaciones.
+El equipo comprobó localmente el registro, inicio de sesión, cartelera, reserva, compra simulada, emisión de entradas y operaciones de Candy Bar. Estas pruebas manuales no equivalen a cobertura exhaustiva del sistema.
 
 ### Funcionalidades implementadas
 
@@ -288,24 +273,26 @@ Aunque estas funcionalidades están desarrolladas, todavía es necesario comprob
 | Descuento de stock al confirmar compras | ✅ Implementado |
 | Frontend con React y TypeScript | ✅ Desarrollado |
 | Panel de administración | ✅ Implementado |
-| Tests automatizados con Vitest | ✅ 20 casos definidos (ejecución pendiente de verificar) |
+| Tests automatizados con Vitest | ✅ 22 casos aprobados en la ejecución local |
 | GitHub Actions | ✅ Workflow configurado |
 
 ### Calidad y pruebas automatizadas
 
 El backend utiliza **Vitest** para verificar comportamientos relevantes del sistema.
 
-Actualmente se encuentran definidos 20 casos de prueba distribuidos en tres archivos:
+Se ejecutaron 22 casos de prueba, distribuidos en tres archivos:
 
 - `superposicionHorarios.test.ts`: 6 pruebas sobre horarios de funciones.
 - `productos.test.ts`: 9 pruebas sobre reglas y validaciones de productos.
-- `pagoService.test.ts`: 5 pruebas sobre procesamiento de pagos y control de stock.
+- `pagoService.test.ts`: 7 pruebas sobre procesamiento de pagos y control de stock, incluidos stock exacto y cantidades repetidas.
 
 Estas pruebas permiten comprobar distintos escenarios, incluyendo operaciones normales, condiciones límite y situaciones de error.
 
 También se configuró un workflow de **GitHub Actions** que automatiza la instalación de dependencias, la ejecución de pruebas y la compilación del backend.
 
-**Importante:** La ejecución satisfactoria de los tests y del workflow debe verificarse y registrarse como evidencia antes de la entrega.
+**Resultados observados:** `npm test` finalizó con **22/22 tests aprobados** (3 archivos); `npm run build` del backend finalizó sin errores. También se verificaron `npm run lint` y `npm run build` del frontend, y GitHub Actions mostró verificaciones en verde en Pull Requests. Estas evidencias corresponden a las ejecuciones del equipo; un resultado correcto no implica que todos los escenarios estén cubiertos.
+
+La mejora documentada de `pagoService.ts` eliminó una afirmación no nula (`!`) innecesaria al recorrer las entradas de un `Map`; se preservó la validación y se sumaron los dos tests mencionados. Ver [`docs/Revision_calidad_codigo.md`](docs/Revision_calidad_codigo.md).
 
 ### Pendientes conocidos
 
@@ -323,14 +310,22 @@ También se configuró un workflow de **GitHub Actions** que automatiza la insta
 - [x] Implementar manejo centralizado de errores.
 - [x] Incorporar tests automatizados con Vitest.
 - [x] Configurar GitHub Actions para el backend.
-- [ ] Comprobar la ejecución satisfactoria de todos los tests.
-- [ ] Verificar la compilación completa del backend.
-- [ ] Documentar los casos de prueba y sus resultados.
-- [ ] Registrar evidencia de revisión de calidad del código.
-- [ ] Verificar la ejecución completa del frontend y backend.
+- [x] Comprobar la ejecución satisfactoria de los tests existentes (22/22).
+- [x] Verificar la compilación del backend.
+- [x] Documentar los casos de prueba y sus resultados.
+- [x] Registrar evidencia de revisión de calidad del código.
+- [x] Verificar manualmente los recorridos principales del frontend y backend.
 - [ ] Revisar la configuración y protección de variables de entorno.
 - [ ] Verificar y actualizar la colección de Postman, si corresponde.
 - [ ] Preparar la demostración y defensa final del proyecto.
+
+---
+
+## 📚 Documentación técnica adicional
+
+- [Decisiones de diseño del Taller II](docs/decisiones-diseno.md) — registro histórico de decisiones anteriores.
+- [Actualización de decisiones del Taller III](docs/actualizacion-decisiones-tallerIII.md) — evolución del diseño y sus limitaciones.
+- [Revisión de calidad del código](docs/Revision_calidad_codigo.md) — refactoring de pagos, casos agregados y verificación.
 
 ---
 
@@ -401,13 +396,13 @@ Una butaca física existe una sola vez, pero su estado (`disponible`, `reservada
 
 ### Manejo de errores
 
-Toda respuesta de error sale con el mismo formato:
+Los errores procesados por el middleware centralizado suelen seguir este formato:
 
 ```json
 { "error": { "mensaje": "Sala no encontrada" } }
 ```
 
-Los errores esperados se lanzan con `AppError` (mensaje y código HTTP) y el `errorHandler` los convierte en respuesta. Códigos que maneja: `400` (datos o ids inválidos, referencias inexistentes), `404` (recurso o ruta inexistente), `409` (el recurso ya existe) y `500` (error interno).
+Los errores esperados pueden lanzarse con `AppError` (mensaje y código HTTP), y `errorHandler` los convierte en respuesta. Sin embargo, algunos controladores —por ejemplo, los de autenticación— siguen respondiendo con formatos propios; **no todas las respuestas de error están unificadas**. Códigos que maneja el sistema: `400` (datos o ids inválidos, referencias inexistentes), `404` (recurso o ruta inexistente), `409` (el recurso ya existe) y `500` (error interno).
 
 ---
 
@@ -426,8 +421,8 @@ Podrá:
 * Gestionar butacas.
 * Crear y modificar funciones.
 * Gestionar productos del Candy Bar.
-* Consultar ventas.
-* Consultar estadísticas del cine.
+* Consultar ventas.(no implementada)
+* Consultar estadísticas del cine.(no implementada)
 
 ### Cliente
 
