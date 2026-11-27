@@ -192,7 +192,6 @@ Si Vite cambia a `5174`, ajustar `CORS_ORIGIN=http://localhost:5174` en `backend
 
 ### 9. Datos de prueba y cuenta administradora
 
-**No se encontró un seeder automático ni credenciales de administrador listas para utilizar** en el ZIP revisado. Una base recién creada puede estar vacía, por lo que la cartelera no mostrará películas hasta cargarlas.
 
 El endpoint `POST /api/autenticacion/registro` permite registrar usuarios, pero el código asigna de manera intencional el rol `cliente` (ignora un rol enviado desde el navegador). Para probar el panel de administración se necesita **preparar de forma controlada un usuario `admin`**. No se deben publicar contraseñas ni claves de demostración en el repositorio.
 
