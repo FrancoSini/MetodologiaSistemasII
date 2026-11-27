@@ -39,7 +39,7 @@ No vamos a eliminar `try/catch` indiscriminadamente. Distinguimos entre:
 
 - **Captura con responsabilidad concreta:** recuperación, traducción deliberada de errores o manejo de recursos que requiera una acción específica. Puede ser necesaria.
 - **Captura que solo reenvía el mismo error con `next(error)`:** puede simplificarse en rutas asíncronas ya cubiertas por `asyncHandler` o Express 5, siempre que se conserven los comportamientos y respuestas esperadas.
-- **Respuestas HTTP construidas directamente en `catch`:** deben revisarse caso por caso para decidir si conviene unificarlas con `AppError` y `errorHandler`.
+
 
 La prioridad es **consistencia sin regresiones**. La existencia de `errorHandler` no asegura que todas las respuestas del sistema utilicen su formato, especialmente cuando un controlador responde directamente.
 
@@ -47,7 +47,6 @@ La prioridad es **consistencia sin regresiones**. La existencia de `errorHandler
 
 Antes, según el análisis del Taller II, el controlador de salas también gestionaba una transacción y su `rollback`. En el código actual, `sala.controller.ts` se ocupa de traducir la solicitud HTTP y delega en `salaService.ts`; el servicio agrupa la creación de sala y butacas en una transacción. Esto refleja mejor la **responsabilidad única (SRP)** y permite localizar la regla de negocio fuera del controlador.
 
-**Pendiente:** revisar gradualmente los controladores de películas, funciones, autenticación y reservas. No se declara que esa refactorización esté realizada.
 
 ## 3. Validación de productos y separación de responsabilidades
 
@@ -65,7 +64,6 @@ Las rutas de administración, como las de creación y edición de productos, emp
 
 **Decisión:** conservar el rol de cliente como valor asignado por el servidor durante el registro y proteger los recursos administrativos en el backend. Para demostraciones locales, las cuentas `admin` se preparan de forma controlada en la base de datos, no mediante un registro público que permita elegir ese rol.
 
-**Limitación:** no todas las rutas presentan exactamente el mismo esquema de autorización; antes de declarar la seguridad integral como verificada, hay que revisar y probar cada endpoint sensible.
 
 ## 5. Patrones de pago que evolucionaron desde el Taller II
 

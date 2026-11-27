@@ -97,7 +97,7 @@ git switch dev
 git pull origin dev
 ```
 
-**Importante:** el enlace de GitHub se comprobó en la configuración remota del repositorio recibido. Aquí se utiliza `dev` como rama integrada de trabajo; si el equipo decide entregar desde `main` u otra rama, debe actualizar esta indicación después de fusionar los cambios. La documentación se mantiene en la rama integrada `dev`.
+**Importante:**  Aquí se utiliza `dev` como rama integrada de trabajo.
 
 ```powershell
 git branch --show-current
@@ -117,7 +117,6 @@ El backend utiliza variables de entorno para configurar la conexión a PostgreSQ
 
 El archivo de ejemplo y el código no utilizan actualmente el mismo nombre para la clave JWT: el código espera `JWT_SECRET_KEY`. Hay que tener en cuenta esa diferencia al configurar el entorno. El código también tiene una clave fija de respaldo si no se define la variable, lo que constituye una limitación de seguridad conocida.
 
-**Por seguridad:** no subir `backend/.env` al repositorio ni compartir credenciales reales. Las contraseñas y configuraciones de PostgreSQL deben ser coherentes entre el backend y Docker Compose.
 
 ### 4. Iniciar la base de datos
 
@@ -207,7 +206,6 @@ WHERE email = 'admin.demo@ejemplo.local';
 
 Cerrar sesión e iniciar sesión nuevamente para obtener un JWT con el rol actualizado. El equipo debe verificar previamente que el registro se haya realizado y que la tabla `usuarios` exista. Una vez con permisos, se pueden cargar películas, salas y funciones desde el panel de administración o la API.
 
-**Antes de entregar:** preparar datos demostrables y validar el circuito completo, sin subir una base con datos personales o secretos.
 
 ### 10. Migraciones SQL presentes en el repositorio
 
@@ -314,9 +312,7 @@ La mejora documentada de `pagoService.ts` eliminó una afirmación no nula (`!`)
 - [x] Documentar los casos de prueba y sus resultados.
 - [x] Registrar evidencia de revisión de calidad del código.
 - [x] Verificar manualmente los recorridos principales del frontend y backend.
-- [ ] Revisar la configuración y protección de variables de entorno.
-- [ ] Verificar y actualizar la colección de Postman, si corresponde.
-- [ ] Preparar la demostración y defensa final del proyecto.
+
 
 ---
 
